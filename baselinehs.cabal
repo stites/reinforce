@@ -39,4 +39,6 @@ library
     , generics-sop
     , accelerate
     , accelerate-llvm-native
+  exposed-modules:
+      DeepQ
   default-language: Haskell2010
