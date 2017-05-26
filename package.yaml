@@ -1,0 +1,65 @@
+name: baselinehs
+version: 0.1.0.0
+
+default-extensions:
+  - BangPatterns
+  - ConstraintKinds
+  - DataKinds
+  - DeriveGeneric
+  - FlexibleContexts
+  - GADTs
+  - KindSignatures
+  - LambdaCase
+  - OverloadedStrings
+  - TupleSections
+  - ViewPatterns
+
+dependencies:
+  - base
+  - bifunctors
+  - bytestring
+  - containers
+  - deepseq
+  - microlens-platform
+  - monad-loops
+  - mtl
+  - mwc-random
+  - safe-exceptions
+  - statistics
+  - text
+  - unordered-containers
+  - vector
+  - transformers
+
+  # target 1
+  - proto-lens
+  - tensorflow-core-ops
+  - tensorflow-opgen
+  - tensorflow-ops
+  - tensorflow-proto
+  - tensorflow
+
+  # target 2
+  - backprop
+  - type-combinators
+  - generics-sop
+  - accelerate
+  - accelerate-llvm-native
+
+library:
+  source-dirs: src
+
+#tests:
+#  doctest:
+#    main: DocTest.hs
+#    source-dirs: test
+#    dependencies:
+#      - baselinehs
+#      - doctest
+#
+#  spec:
+#    main: Spec.hs
+#    source-dirs: test
+#    dependencies:
+#      - baselinehs
+#      - hspec
