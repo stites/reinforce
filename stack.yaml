@@ -2,15 +2,16 @@ flags: {}
 extra-package-dbs: []
 packages:
 - '.'
-- location:
-    git: git@github.com:Sentenai/reinforce.git
-    commit: 'a25abbaa522051aaf0532d3abc439b885599be67'
-  extra-dep: true
+- location: /home/stites/git/reinforce/
+  #  git: git@github.com:Sentenai/reinforce.git
+  #  commit: 'a25abbaa522051aaf0532d3abc439b885599be67'
+  #extra-dep: true
 - location:
     git: git@github.com:stites/gym-http-api.git
     commit: '93ce33'
   subdirs:
     - binding-hs
+  extra-dep: true
 extra-deps:
 - accelerate-1.0.0.0
 - accelerate-llvm-1.0.0.0

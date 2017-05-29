@@ -10,6 +10,7 @@ default-extensions:
   - GADTs
   - KindSignatures
   - LambdaCase
+  - NoImplicitPrelude
   - OverloadedStrings
   - TupleSections
   - ViewPatterns
@@ -24,6 +25,7 @@ dependencies:
   - monad-loops
   - mtl
   - mwc-random
+  - reinforce
   - safe-exceptions
   - statistics
   - text
