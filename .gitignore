@@ -141,3 +141,7 @@ flycheck_*.el
 
 # projectiles files
 .projectile
+
+.idea
+.ipynb_checkpoints
+__pycache__
