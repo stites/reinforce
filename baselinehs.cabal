@@ -18,6 +18,7 @@ library
     , bytestring
     , containers
     , deepseq
+    , dlist
     , microlens-platform
     , monad-loops
     , mtl
