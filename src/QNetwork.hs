@@ -14,6 +14,7 @@ import Environments.Gym.ToyText.FrozenLakeV0 hiding (Left, Right)
 import qualified Control.MonadEnv     as Env
 import qualified Data.Logger          as Logger
 import qualified Data.DList           as DL
+import qualified Data.Vector          as V
 import qualified TensorFlow.Gradient  as TF
 import qualified TensorFlow.Core      as TF
 import qualified TensorFlow.Ops       as TF
@@ -27,7 +28,7 @@ numEpisodes = 2000
 
 main :: IO ()
 main =
-  runDefaultEnvironment False learn
+  TF.runSession (runDefaultEnvironmentT False learn)
   >>= \case
     Left err ->
       throwString (show err)
@@ -44,25 +45,12 @@ main =
     histToRewards = fmap eventToRewards . DL.toList
 
 
-learn :: Environment ()
-learn = undefined
-
-
-learn' :: Session a
-learn' = do
-  model <- TF.build $ createModel
-  forM_ ([0..numEpisodes]::[Int]) $ \i -> do
-    -- chooseit model -- :: TensorData Float -> Session (Vector TFAction)
-    -- stepit model -- :: TensorData Float -> TensorData Float -> Session ()
-    s <- liftIO $ runDefaultEnvironment True (Env.step Up)
-    -- stepit model [0..15] undefined
-
-
-    --(liftIO Env.reset) >>= \case
-    --  EmptyEpisode -> return ()
-    --  Initial s -> rollout model 0 s
-    undefined
-  return undefined
+learn :: EnvironmentT Session ()
+learn = do
+  model <- lift (TF.build createModel)
+  Env.reset >>= \case
+    EmptyEpisode -> return ()
+    Initial s -> rollout model 0 s
 
 
   where
@@ -70,14 +58,40 @@ learn' = do
     e = 0.1
     maxSteps = 100
 
-    rollout :: Model -> Int -> StateFL -> Environment ()
-    rollout m i s
+    asFloats :: Vector Int -> Vector Float
+    asFloats = fmap fromIntegral
+
+    stateToData :: StateFL -> TensorData Float
+    stateToData s = TF.encodeTensorData [1, 16] (asFloats $ toVector s)
+
+    dataToAction :: Vector TFAction -> Action
+    dataToAction = toEnum . fromIntegral . (V.! 0)
+
+    choiceToData :: Action -> TensorData Float
+    choiceToData a = TF.encodeTensorData [1, 4]
+      (asFloats $ V.generate 4 (fromEnum . (== fromEnum a)))
+
+    rollout :: Model -> Int -> StateFL -> EnvironmentT Session ()
+    rollout Model{stepit, chooseit} i (stateToData->s)
       | i > 100   = return ()
       | otherwise = do
          -- a,allQ = sess.run([predict,Qout],feed_dict={inputs1:np.identity(16)[s:s+1]})
-    --     model' <- liftIO . TF.run $ train m undefined undefined
-         return ()
-          -- putStrLn $ "training error " ++ show (err * 100)
+         -- chooseit :: TensorData Float -> Session (Vector TFAction)
+         actionVector <- lift (chooseit s)
+         liftIO (print actionVector)
+         let act = (dataToAction actionVector)
+         nxt <- Env.step act
+         case nxt of
+           Next st rwd -> do
+             -- stepit   :: TensorData Float -> TensorData Float -> Session ()
+             (liftIO.print) (st, rwd)
+             nxt <- Env.step act
+             case nxt of
+               Next st' rwd' -> (liftIO.print) (st', rwd')
+               Done rwd' -> (liftIO.print) rwd'
+           Done rwd -> do
+             -- stepit   :: TensorData Float -> TensorData Float -> Session ()
+             (liftIO.print) rwd
 
     --     #The Q-Network
     --     while j < 99:
@@ -123,7 +137,7 @@ type TFAction = Int32
 
 data Model = Model
   { chooseit :: TensorData Float -> Session (Vector TFAction)
-  , stepit :: TensorData Float -> TensorData Float -> Session ()
+  , stepit   :: TensorData Float -> TensorData Float -> Session ()
   }
 
 
@@ -187,10 +201,16 @@ training' = do
       ] trainStep
 
   where
-    applyGradients :: [Tensor TF.Ref Float] -> [Tensor TF.Value Float] -> Build TF.ControlNode
+    applyGradients
+      :: [Tensor TF.Ref Float]
+      -> [Tensor TF.Value Float]
+      -> Build TF.ControlNode
     applyGradients params grads = zipWithM applyGrad params grads >>= TF.group
 
-    applyGrad :: Tensor TF.Ref Float -> Tensor TF.Value Float -> Build (Tensor TF.Ref Float)
+    applyGrad
+      :: Tensor TF.Ref Float
+      -> Tensor TF.Value Float
+      -> Build (Tensor TF.Ref Float)
     applyGrad param grad = TF.assign param $ param `TF.sub` (lr `TF.mul` grad)
 
     lr :: Tensor Build Float
