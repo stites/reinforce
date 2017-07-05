@@ -1,8 +1,6 @@
 -------------------------------------------------------------------------------
 -- THIS IS A WORK IN PROGRESS AND IS CURRENTLY A BROKEN IMPLEMENTATION
 -------------------------------------------------------------------------------
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module QNetwork where
@@ -10,25 +8,36 @@ module QNetwork where
 import Baseline.Prelude
 import Control.MonadEnv.Internal
 import Environments.Gym.ToyText.FrozenLakeV0 hiding (Left, Right)
+import Control.MonadMWCRandom (MWCRandT(..))
+import Control.Monad.Trans -- .Class
 
-import qualified Control.MonadEnv     as Env
-import qualified Data.Logger          as Logger
-import qualified Data.DList           as DL
-import qualified Data.Vector          as V
-import qualified TensorFlow.Gradient  as TF
-import qualified TensorFlow.Core      as TF
-import qualified TensorFlow.Ops       as TF
+import qualified System.Random.MWC       as MWC
+import qualified Control.MonadMWCRandom  as MMWC
+import qualified Control.MonadEnv        as Env
+import qualified Data.Logger             as Logger
+import qualified Data.DList              as DL
+import           Data.List               (groupBy)
+import           Data.Function           (on)
+import qualified Data.Vector             as V
+import qualified TensorFlow.Gradient     as TF
+import qualified TensorFlow.Core         as TF
+import qualified TensorFlow.Ops          as TF
+
+import Debug.Trace
 
 
 type Event = Logger.Event Reward StateFL Action
+
 
 numEpisodes :: Int
 numEpisodes = 2000
 
 
 main :: IO ()
-main =
-  TF.runSession (runDefaultEnvironmentT False learn)
+main = do
+  g <- MWC.createSystemRandom
+  let learn100eps = replicateM 100 (learn e)
+  TF.runSession (MMWC.runMWCRandT (runDefaultEnvironmentT False learn100eps) g)
   >>= \case
     Left err ->
       throwString (show err)
@@ -38,25 +47,68 @@ main =
       print $ "Percent succesful episodes: " ++ strPer ++ "%"
 
   where
-    eventToRewards :: Event -> Reward
-    eventToRewards (Logger.Event i r o a) = r
+    e :: Float
+    e = 0.1
+
+    eventToRewards :: Event -> (Integer, Reward)
+    eventToRewards (Logger.Event i r o a) = (i, r)
 
     histToRewards :: DL.DList Event -> [Reward]
-    histToRewards = fmap eventToRewards . DL.toList
+    histToRewards rs = fmap sum episodes
+      where
+        episodes :: [[Reward]]
+        episodes = (fmap.fmap) snd $
+          groupBy (\l r -> fst l == fst r)
+            (fmap eventToRewards . DL.toList $ rs)
 
 
-learn :: EnvironmentT Session ()
-learn = do
-  model <- lift (TF.build createModel)
-  Env.reset >>= \case
-    EmptyEpisode -> return ()
-    Initial s -> rollout model 0 s
 
+liftTF :: Session a -> EnvironmentT (MMWC.MWCRandT Session) a
+liftTF = lift . lift
+
+
+printIO :: (Show s, MonadIO io) => s -> io ()
+printIO = liftIO . print
+
+
+learn :: Float -> EnvironmentT (MMWC.MWCRandT Session) (DL.DList (Reward, Action), Float)
+learn e = do
+  m   <- liftTF (TF.build createModel)
+  obs <- Env.reset
+  case obs of
+    EmptyEpisode -> return (DL.empty, e)
+    Initial s    -> rolloutEpisode m 0 e s DL.empty
+
+
+rolloutEpisode :: Model -> Int -> Float -> StateFL -> DL.DList (Reward, Action) -> EnvironmentT (MMWC.MWCRandT Session) (DL.DList (Reward, Action), Float)
+rolloutEpisode !m@Model{trainit, chooseit} !i !e !s !dl
+  | i > 100   = return (dl, e)
+  | otherwise = do
+    !a'   <- dataToAction <$> liftTF (chooseit (stateToData s))
+    !p    <- lift $ MMWC.uniformR (0, 1::Float)
+    !a    <- if p < e then randomAction else pure a'
+    !next <- Env.step a
+    case next of
+      Next !rwd !st -> do
+        let targetQ = rwd + y
+        let ctda = choiceToData a
+            stds = stateToData s
+        liftTF $ trainit stds (rewardTD targetQ a)
+        rolloutEpisode m (i+1) e st (dl `DL.snoc` (rwd, a))
+      Done !rwd -> do
+        let targetQ = rwd + y
+        liftTF $ trainit (choiceToData a) (rewardTD targetQ a)
+        pure (dl `DL.snoc` (rwd, a), 1 / ((i//50) + 10))
 
   where
     y = 0.99
-    e = 0.1
     maxSteps = 100
+
+    (//) :: Int -> Int -> Float
+    (//) = (/) `on` fromIntegral
+
+    rewardTD :: Double -> Action -> TensorData Float
+    rewardTD (realToFrac->f) a = TF.encodeTensorData [1, 4] ((* f) <$> actionToVector a)
 
     asFloats :: Vector Int -> Vector Float
     asFloats = fmap fromIntegral
@@ -68,56 +120,16 @@ learn = do
     dataToAction = toEnum . fromIntegral . (V.! 0)
 
     choiceToData :: Action -> TensorData Float
-    choiceToData a = TF.encodeTensorData [1, 4]
-      (asFloats $ V.generate 4 (fromEnum . (== fromEnum a)))
+    choiceToData = TF.encodeTensorData [1, 4] . actionToVector
 
-    rollout :: Model -> Int -> StateFL -> EnvironmentT Session ()
-    rollout Model{stepit, chooseit} i (stateToData->s)
-      | i > 100   = return ()
-      | otherwise = do
-         -- a,allQ = sess.run([predict,Qout],feed_dict={inputs1:np.identity(16)[s:s+1]})
-         -- chooseit :: TensorData Float -> Session (Vector TFAction)
-         actionVector <- lift (chooseit s)
-         liftIO (print actionVector)
-         let act = (dataToAction actionVector)
-         nxt <- Env.step act
-         case nxt of
-           Next st rwd -> do
-             -- stepit   :: TensorData Float -> TensorData Float -> Session ()
-             (liftIO.print) (st, rwd)
-             nxt <- Env.step act
-             case nxt of
-               Next st' rwd' -> (liftIO.print) (st', rwd')
-               Done rwd' -> (liftIO.print) rwd'
-           Done rwd -> do
-             -- stepit   :: TensorData Float -> TensorData Float -> Session ()
-             (liftIO.print) rwd
+    actionToVector :: Action -> Vector Float
+    actionToVector a = asFloats $ V.generate 4 (fromEnum . (== fromEnum a))
 
-    --     #The Q-Network
-    --     while j < 99:
-    --         j+=1
-    --         #Choose an action by greedily (with e chance of random action) from the Q-network
-    --         if np.random.rand(1) < e:
-    --             a[0] = env.action_space.sample()
-    --         #Get new state and reward from environment
-    --         s1,r,d,_ = env.step(a[0])
-    --         #Obtain the Q' values by feeding the new state through our network
-    --         Q1 = sess.run(Qout,feed_dict={inputs1:np.identity(16)[s1:s1+1]})
-    --         #Obtain maxQ' and set our target value for chosen action.
-    --         maxQ1 = np.max(Q1)
-    --         targetQ = allQ
-    --         targetQ[0,a[0]] = r + y*maxQ1
-    --         #Train our network using target and predicted Q values
-    --         _,W1 = sess.run([updateModel,W],feed_dict={inputs1:np.identity(16)[s:s+1],nextQ:targetQ})
-    --         rAll += r
-    --         s = s1
-    --         if d == True:
-    --             #Reduce chance of random action as we train the model.
-    --             e = 1./((i/50) + 10)
-    --             break
-    --     jList.append(j)
-    --     rList.append(rAll)
-
+    randomAction :: EnvironmentT (MMWC.MWCRandT Session) Action
+    randomAction = toEnum <$> (lift $ MMWC.uniformR (0, fromEnum maxAct))
+      where
+        maxAct :: Action
+        maxAct = maxBound
 
 
 -- Build a tensorflow graph representation
@@ -125,9 +137,9 @@ createModel :: Build Model
 createModel = do
   vars     <- mkVariables
   chooseit <- runReaderT infer'    vars
-  stepit   <- runReaderT training' vars
+  trainit  <- runReaderT training' vars
   return Model
-    { stepit = stepit
+    { trainit = trainit
     , chooseit = chooseit
     }
 
@@ -137,16 +149,16 @@ type TFAction = Int32
 
 data Model = Model
   { chooseit :: TensorData Float -> Session (Vector TFAction)
-  , stepit   :: TensorData Float -> TensorData Float -> Session ()
+  , trainit  :: TensorData Float -> TensorData Float -> Session ()
   }
 
 
 data GraphRefs = GraphRefs
-  { inputs  :: Tensor Value    Float
-  , weights :: Tensor   Ref    Float
-  , predict :: Tensor Value TFAction
-  , qOut    :: Tensor Build    Float
-  , nextQs  :: Tensor   Ref    Float
+  { inputs  :: !(Tensor Value    Float)
+  , weights :: !(Tensor   Ref    Float)
+  , predict :: !(Tensor Value TFAction)
+  , qOut    :: !(Tensor Build    Float)
+  , nextQs  :: !(Tensor   Ref    Float)
   }
 
 
@@ -154,7 +166,7 @@ mkVariables :: TF.Build GraphRefs
 mkVariables = do
   inputs  <- TF.placeholder [1, 16]
   weights <- TF.initializedVariable =<< randomParam 16 [16, 4]
-  let qOut = (inputs `TF.matMul` weights)
+  let qOut = inputs `TF.matMul` weights -- :: Tensor [16 x 4]
   predict <- TF.render . TF.cast $ TF.argMax qOut (TF.scalar (1 :: TFAction))
   nextQs  <- TF.initializedVariable =<< randomParam  1 [ 1, 4]
   return GraphRefs
@@ -178,7 +190,8 @@ mkVariables = do
 infer' :: ReaderT GraphRefs Build (TensorData Float -> Session (Vector TFAction))
 infer' = do
   GraphRefs{inputs, predict} <- ask
-  return $ \ins -> TF.runWithFeeds [TF.feed inputs ins] predict
+  return $ \ins ->
+    TF.runWithFeeds [TF.feed inputs ins] predict
 
 
 training' :: ReaderT GraphRefs Build (TensorData Float -> TensorData Float -> Session ())
@@ -188,13 +201,23 @@ training' = do
     loss :: Tensor Build Float
     loss = TF.reduceSum $ (nextQs `TF.sub` qOut) `TF.matMul` (nextQs `TF.sub` qOut)
 
+    -- inputs  :: [ 1 x 16]
+    -- weights :: [16 x  4]
+    -- qOut    :: [ 1 x  4]
+    -- predict :: Vector TFAction
+    -- nextQs  :: [ 1 x  4]
+
     params :: [Tensor Ref Float]
     params = [weights]
 
-  grads     <- lift $ TF.gradients loss params
-  trainStep <- lift $ applyGradients params grads
+  grads     <- lift $ TF.gradients     loss params
+  trainStep <- lift $ applyGradients params  grads
 
-  return $ \inFeed rwdFeed ->
+  return $ \inFeed rwdFeed -> do
+    printIO "train"
+    printIO (TF.decodeTensorData inFeed  :: Vector Float)
+    printIO (TF.decodeTensorData rwdFeed :: Vector Float)
+
     TF.runWithFeeds_
       [ TF.feed inputs inFeed
       , TF.feed nextQs rwdFeed
@@ -202,13 +225,13 @@ training' = do
 
   where
     applyGradients
-      :: [Tensor TF.Ref Float]
+      :: [Tensor TF.Ref   Float]
       -> [Tensor TF.Value Float]
       -> Build TF.ControlNode
     applyGradients params grads = zipWithM applyGrad params grads >>= TF.group
 
     applyGrad
-      :: Tensor TF.Ref Float
+      :: Tensor TF.Ref   Float
       -> Tensor TF.Value Float
       -> Build (Tensor TF.Ref Float)
     applyGrad param grad = TF.assign param $ param `TF.sub` (lr `TF.mul` grad)
