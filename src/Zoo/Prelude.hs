@@ -1,4 +1,4 @@
-module Baseline.Prelude
+module Zoo.Prelude
   ( module X
   , UVector
   , GVector

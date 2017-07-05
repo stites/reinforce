@@ -5,11 +5,11 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module QNetwork where
 
-import Baseline.Prelude
+import Zoo.Prelude
 import Control.MonadEnv.Internal
 import Environments.Gym.ToyText.FrozenLakeV0 hiding (Left, Right)
 import Control.MonadMWCRandom (MWCRandT(..))
-import Control.Monad.Trans -- .Class
+import Control.Monad.Trans
 
 import qualified System.Random.MWC       as MWC
 import qualified Control.MonadMWCRandom  as MMWC
