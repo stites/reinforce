@@ -4,6 +4,7 @@ import numpy       as np
 import tensorflow  as tf
 import tensorflow.contrib.slim as slim
 
+from Baseline.Prelude import *
 
 class Agent:
 
@@ -62,7 +63,7 @@ class Agent:
             sess.run(init)
             i = 0
 
-            gradBuffer = reset_grads(sess.run(tf.trainable_variables()))
+            gradBuffer = lmap(mul(0), sess.run(tf.trainable_variables()))
 
             stList = []
             rwdList = []
@@ -71,15 +72,14 @@ class Agent:
                 running_reward, nsteps, grads = _rollout_ep(env.reset(), None, sess)
                 rwdList.append(running_reward)
                 stList.append(nsteps)
-                gradBuffer = list(map(lambda gs: gs[0] + gs[1], zip(grads, gradBuffer)))
+                gradBuffer = zipWith(lambda a, b: a + b, grads, gradBuffer)
 
                 if i % 100 == 0:
                     print(np.mean(rwdList[-100:]))
 
                 if i % batch_size == 0 and i != 0:
-                    feed_dict= dictionary = dict(zip(self.gradient_holders, gradBuffer))
-                    _ = sess.run(self.update_batch, feed_dict=feed_dict)
-                    gradBuffer = reset_grads(gradBuffer)
+                    _ = sess.run(self.update_batch, feed_dict=dict(zip(self.gradient_holders, gradBuffer)))
+                    gradBuffer = lmap(mul(0), gradBuffer)
 
                 i += 1
 
@@ -105,78 +105,16 @@ class Agent:
 
         #Update the network.
         grads = sess.run(self.gradients, feed_dict={
-                self.inputs: _c(np.vstack, np.array, _w1(lmap, _0))(ep_history),
+                self.inputs: _c(np.vstack, np.array, _p(lmap, _0))(ep_history),
                 self.action_holder: lmap(_1, ep_history),
                 self.reward_holder: eligibility_trace(self.gamma, lmap(_2, ep_history))
             })
 
         return running_reward, step_num, grads
 
-def compose(*functions):
-    """ compose """
-    def inner(arg):
-        for f in reversed(functions):
-            arg = f(arg)
-        return arg
-    return inner
-
-_c = compose
-
-def curry1(fn, a):
-    def inner(*args):
-        return fn(a, *args)
-    return inner
-
-_w1 = curry1
-
-def eligibility_trace(gamma, rs):
-    """ take 1D float array of rewards and compute discounted reward """
-    discounted_r = np.zeros_like(rs)
-    running_add = 0
-    size = oneof(lambda: rs.size, lambda: len(rs))
-
-    for t in reversed(range(0, size)):
-        running_add = running_add * gamma + rs[t]
-        discounted_r[t] = running_add
-    return discounted_r
-
-def oneof(fn1, fn2):
-    tmp = None
-
-    try:
-      tmp = fn1()
-    except:
-      tmp = fn2()
-
-    return tmp
-
-def lmap(fn, ls):
-    return list(map(fn, ls))
-
-def imap(fn, ls):
-    return lmap(lambda xs: fn(xs[0], xs[1]), enumerate(ls))
-
-_0 = lambda t: t[0]
-_1 = lambda t: t[1]
-_2 = lambda t: t[2]
-
-def choose_action(dist, probs):
-    return np.argmax(dist == np.random.choice(probs, p=probs))
-
-def decay_epsilon(ep_number):
-    """ Reduce chance of random action as we train the model. """
-    return 1.0 / ((ep_number / 50) + 10)
-
-def reset_grads(gradBuffer):
-    return list(map(lambda grad: grad * 0, gradBuffer))
-
-def one_hot_encode(i, total):
-  return np.identity(total)[i:i+1]
-
 def main():
     agent = Agent(gym.make('CartPole-v0'), max_episodes=2000, max_steps=199)
     agent.run_learner()
-
 
 if __name__ == "__main__":
     main()
