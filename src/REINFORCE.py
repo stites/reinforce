@@ -1,16 +1,9 @@
-import gym
-import operator
-import numpy       as np
-import tensorflow  as tf
-import tensorflow.contrib.slim as slim
-
 from Zoo.Prelude import *
 
 class Agent:
 
     def __init__(self, env, max_episodes=2000, max_steps=99, batch_size=5, hidden_size=8, lr=0.1, gamma=0.99):
-        action_size = env.action_space.n
-        state_size = env.observation_space.shape[0]
+        action_size, state_size = space_sizes(env)
 
         # """ Build the tensorflow graph """
         tf.reset_default_graph()

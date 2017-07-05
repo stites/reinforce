@@ -1,7 +1,18 @@
-import numpy as np
+import gym
+import numpy       as np
+import pandas      as pd
+import tensorflow  as tf
+import tensorflow.contrib.slim as slim
+
 from functools import *
 
 __all__ = [
+    "gym",
+    "np",
+    "pd",
+    "tf",
+    "slim",
+
     "partial",
     "partialmethod",
     "reduce",
@@ -22,7 +33,9 @@ __all__ = [
     "_2",
     "choose_action",
     "one_hot_encode",
-    "zipWith"
+    "zipWith",
+    "space_sizes",
+    "flatten_tensor"
     ]
 
 _p = partial
@@ -41,17 +54,6 @@ def compose(*functions):
     return inner
 
 _c = compose
-
-def eligibility_trace(gamma, rs):
-    """ take 1D float array of rewards and compute discounted reward """
-    discounted_r = np.zeros_like(rs)
-    running_add = 0
-    size = oneof(lambda: rs.size, lambda: len(rs))
-
-    for t in reversed(range(0, size)):
-        running_add = running_add * gamma + rs[t]
-        discounted_r[t] = running_add
-    return discounted_r
 
 def oneof(fn1, fn2):
     tmp = None
@@ -82,3 +84,26 @@ def one_hot_encode(i, total):
 def zipWith(fn, _as, _bs):
     return list(map(lambda gs: fn(gs[0], gs[1]), zip(_as, _bs)))
 
+
+""" Shared reinforcement learning functions"""
+
+def eligibility_trace(gamma, rs):
+    """ take 1D float array of rewards and compute discounted reward """
+    discounted_r = np.zeros_like(rs)
+    running_add = 0
+    size = oneof(lambda: rs.size, lambda: len(rs))
+
+    for t in reversed(range(0, size)):
+        running_add = running_add * gamma + rs[t]
+        discounted_r[t] = running_add
+    return discounted_r
+
+def space_sizes(env):
+    a_size = env.action_space.n
+    try:
+      return a_size, env.observation_space.n
+    except:
+      return a_size, env.observation_space.shape[0]
+
+def flatten_tensor(tns):
+    return tf.reshape(tns, [-1])
