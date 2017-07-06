@@ -17,14 +17,23 @@ class Agent:
             eps=0.99      # decay factor for RMSProp leaky sum of grad^2
             ):
         self.action_size, self.state_size = space_sizes(env)
-        self.hidden_size = hidden_size
-        self.lr = lr
 
-        # """ Build the tensorflow graph """
+        self.env               = env
+        self.max_episodes      = max_episodes
+        self.max_steps         = max_steps
+        self.batch_size        = batch_size
+        self.batch_size_model  = batch_size_model
+        self.hidden_size       = hidden_size
+        self.hidden_size_model = hidden_size_model
+        self.lr                = lr
+        self.gamma             = gamma
+        self.eps               = eps
+
+        """ Build the tensorflow graph """
         tf.reset_default_graph()
 
-        self.policy_network()
-        self.model_network()
+        self.policy = self.policy_network()
+        self.model  = self.model_network()
 
 
     def policy_network(self):
@@ -52,6 +61,13 @@ class Agent:
         loss          = -tf.reduce_mean(loglikelihood * advantages)
         newGrads      = tf.gradients(loss, tvars)
         updateGrads   = adam.apply_gradients(zip(batchGrad, tvars))
+
+        #==================================#
+        # Things we want to refer to later #
+        #==================================#
+        return {
+            "tvars": tvars
+        }
 
 
     def model_network(self):
@@ -113,11 +129,17 @@ class Agent:
         model_loss      = tf.reduce_mean(observation_loss + done_loss + reward_loss)
         update_model    = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(model_loss)
 
+        return {
+            "previous_state" : previous_state,
+            "predicted_state": predicted_state,
+            "model_loss"     : model_loss,
+            "update_model"   : update_model
+        }
 
     def step_model(sess, xs, action):
         """this function uses our model to produce a new state when given a previous state and action"""
         feed             = np.reshape(np.hstack([xs[-1][0], np.array(action)]), [1,5])
-        predicted_model  = sess.run([predicetd_state], feed_dict={previous_state:feed})[0]
+        predicted_model  = sess.run([self.model['predicted_state']], feed_dict={self.model['previous_state']:feed})[0]
         reward           = npmap(_4, predicted_model)
         observation      = predicted_model[:,0:4]
         observation[:,0] = np.clip(observation[:,0], -2.4, 2.4)
@@ -127,11 +149,19 @@ class Agent:
 
 
     def run_learner(self):
-        episode_history = EpisodeWriter()
-        pass
+        episodes = Writer()
+        policy = self.policy
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            gradBuffer = lmap(mul(0), sess.run(policy.tvars)) # self.tvars should really be all tvars under a certain scope
+            self._rollout_ep(self.env.reset(), None, sess)
+            for ep_num in range(self.max_episodes):
+                episodes.tell(self._rollout_ep(self.env.reset(), self.eps, sess))
+                model_prob = sess.run(probability)
 
     def _rollout_ep(self, s, eps, sess):
-        """TODO"""
+        history = EpisodeWriter()
+        
         pass
 
 
