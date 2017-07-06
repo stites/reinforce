@@ -27,15 +27,20 @@ __all__ = [
     "eligibility_trace",
     "oneof",
     "lmap",
+    "npmap",
     "imap",
     "_0",
     "_1",
     "_2",
+    "_3",
+    "_4",
     "choose_action",
     "one_hot_encode",
     "zipWith",
     "space_sizes",
-    "flatten_tensor"
+    "flatten_tensor",
+    "Writer",
+    "EpisodeWriter"
     ]
 
 _p = partial
@@ -68,12 +73,17 @@ def oneof(fn1, fn2):
 def lmap(fn, ls):
     return list(map(fn, ls))
 
+def npmap(fn, ls):
+    return np.array(lmap(fn, ls))
+
 def imap(fn, ls):
     return lmap(lambda xs: fn(xs[0], xs[1]), enumerate(ls))
 
 _0 = lambda t: t[0]
 _1 = lambda t: t[1]
 _2 = lambda t: t[2]
+_3 = lambda t: t[3]
+_4 = lambda t: t[4]
 
 def choose_action(dist, probs):
     return np.argmax(dist == np.random.choice(probs, p=probs))
@@ -107,3 +117,29 @@ def space_sizes(env):
 
 def flatten_tensor(tns):
     return tf.reshape(tns, [-1])
+
+
+class Writer:
+    def __init__(self):
+        self.log = []
+
+    def tell(self, *args):
+        self.log.append(list(args))
+
+    def listen(self):
+        return self.log
+
+
+class EpisodeWriter(Writer):
+    def __init__(self, dtype=None):
+        super(EpisodeWriter, self).__init__()
+        assert type(dtype) == type, "dtype must be a type or None"
+        self.dtype = dtype
+
+    def tell(self, observed_state, reward, action, isdone):
+        super(EpisodeWriter, self).tell(observed_state, reward, action, isdone)
+
+    def listen(self):
+        return np.array(super(EpisodeWriter, self).listen(), dtype=self.dtype)
+
+
