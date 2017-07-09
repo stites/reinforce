@@ -1,19 +1,20 @@
-from Zoo.Prelude import *
+from Zoo.Prelude   import *
+from Zoo.Gridworld import Gridworld
 
-
-convolution_layer = tf.contrib.layers.convolution2d(
-        inputs,       # input layer
-
-        num_outputs,  # how many filters we would like to apply to the previous layer
-
-        kernel_size,  # how large a window we would like to slide over the previous layer
-
-        stride,       # how many pixels we want to skip as we move the window across the layer
-
-        padding)      # whether we want our window to slide over just the bottom layer
-                      # ("VALID") or add padding around it ("SAME") in order to ensure
-                      # that the convolutional layer has the same dimensions as the 
-                      # previous layer.
+env = Gridworld(partial=False, sizeX=5)
+# convolution_layer = tf.contrib.layers.convolution2d(
+#         inputs,       # input layer
+# 
+#         num_outputs,  # how many filters we would like to apply to the previous layer
+# 
+#         kernel_size,  # how large a window we would like to slide over the previous layer
+# 
+#         stride,       # how many pixels we want to skip as we move the window across the layer
+# 
+#         padding)      # whether we want our window to slide over just the bottom layer
+#                       # ("VALID") or add padding around it ("SAME") in order to ensure
+#                       # that the convolutional layer has the same dimensions as the 
+#                       # previous layer.
 """
 Improvements to DQNs since its first release
 ============================================
