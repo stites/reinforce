@@ -10,6 +10,7 @@ default-extensions:
   - GADTs
   - KindSignatures
   - LambdaCase
+  - NamedFieldPuns
   - NoImplicitPrelude
   - OverloadedStrings
   - TupleSections

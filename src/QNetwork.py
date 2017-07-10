@@ -1,7 +1,4 @@
-import gym
-import numpy       as np
-import tensorflow  as tf
-
+from Zoo.Prelude import *
 
 class Agent:
 
@@ -86,7 +83,7 @@ class Agent:
             s_next, r, done, _ = env.step(a)
 
             # Obtain the Q values by feeding the new state through our network
-            Q_next = sess.run(Qout, feed_dict={ inputs:one_hot(s_next) }) 
+            Q_next = sess.run(Qout, feed_dict={ inputs:one_hot(s_next) })
 
             # Obtain maxQ' and set our target value for chosen action.
             maxQ_next = np.max(Q_next)
