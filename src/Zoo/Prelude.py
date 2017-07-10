@@ -46,6 +46,9 @@ __all__ = [
     "curry",
     "truncate",
 
+    "epsilon_greedy",
+    "AnnealingEpsilon",
+
     "space_sizes",
     "flatten_tensor",
     "Writer",
@@ -145,6 +148,38 @@ def space_sizes(env):
 
 def flatten_tensor(tns):
     return tf.reshape(tns, [-1])
+
+
+def epsilon_greedy(eps, action_size, action_chooser, other_conditions=lambda: False):
+    choose_random = np.random.rand(1) < eps or other_conditions()
+    return np.random.randint(0, action_size) if choose_random \
+      else action_chooser()
+
+
+class AnnealingEpsilon:
+    def __init__(self, step_size, start_step=0, eps_range=(1,0)):
+        self._is_end     = False
+        self.eps_range   = eps_range
+        self.start,self.end   = eps_range
+
+        self.step_size   = float(step_size)
+        self.start_step  = float(step_size)
+        self.start_decay = lambda curr_step: start_step < curr_step
+
+    def linear_decay(self, step):
+        start, end = self.eps_range
+        return ((start - end) / self.step_size) * (step - self.start_step)
+
+    def __call__(self, step):
+        start, end = self.eps_range
+        if self._is_end:
+            return end
+        elif not self.start_decay(step):
+            return start
+        else:
+            calculated  = start - self.linear_decay(step)
+            self._is_end = calculated < end
+            return end if self._is_end else calculated
 
 
 class Writer(object):

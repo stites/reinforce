@@ -9,7 +9,7 @@ from gym.utils import seeding
 
 class Gridworld(gym.Env):
     class GridObj:
-        def __init__(self, size, intensity, channel, reward, name):
+        def __init__(self, coordinates, size, intensity, channel, reward, name):
             self.x         = coordinates[0]
             self.y         = coordinates[1]
             self.size      = size
@@ -44,24 +44,24 @@ class Gridworld(gym.Env):
         can_left     = lambda hero: hero.x >= 1
         can_right    = lambda hero: hero.x <= (self.sizeX - 2)
 
-        def move_up (hero): hero.y -= 1
-        def move_down (hero): hero.y += 1
-        def move_left (hero): hero.x -= 1
-        def move_right (hero): hero.x += 1
+        def move_up(hero): hero.y -= 1
+        def move_down(hero): hero.y += 1
+        def move_left(hero): hero.x -= 1
+        def move_right(hero): hero.x += 1
 
         hero_unmoved = lambda hero: hero.x == heroX and hero.y == heroY
 
 
-        if action_up(action) and can_up(hero.y):
+        if action_up(action) and can_up(hero):
             move_up(hero)
 
-        elif action_down(action) and can_down(hero.y):
+        elif action_down(action) and can_down(hero):
             move_down(hero)
 
-        elif action_left(action) and can_left(hero.y):
+        elif action_left(action) and can_left(hero):
             move_left(hero)
 
-        elif action_right(action) and can_right(hero.y):
+        elif action_right(action) and can_right(hero):
             move_right(hero)
 
         elif hero_unmoved(hero):
@@ -95,7 +95,7 @@ class Gridworld(gym.Env):
         self.objects.append(self.GridObj(self.newPosition(),1,1,0,  -1,'fire'))
         self.objects.append(self.GridObj(self.newPosition(),1,1,1,   1,'goal'))
         self.objects.append(self.GridObj(self.newPosition(),1,1,1,   1,'goal'))
-        state = self.renderEnv()
+        state = self._render()
         self.state = state
         return state
 
@@ -141,13 +141,13 @@ class Gridworld(gym.Env):
                 self.objects.remove(other)
 
                 if other.reward == 1:
-                    self.objects.append(gameOb(self.newPosition(),1,1,1, 1,'goal'))
+                    self.objects.append(self.GridObj(self.newPosition(),1,1,1, 1,'goal'))
                 else:
-                    self.objects.append(gameOb(self.newPosition(),1,1,0,-1,'fire'))
+                    self.objects.append(self.GridObj(self.newPosition(),1,1,0,-1,'fire'))
 
                 return other.reward, done
 
-        if ended == False:
+        if done == False:
             return 0.0, False
 
     def newPosition(self):
@@ -163,4 +163,3 @@ class Gridworld(gym.Env):
             points.remove(pos)
         location = np.random.choice(range(len(points)),replace=False)
         return points[location]
-

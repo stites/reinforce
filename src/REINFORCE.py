@@ -105,11 +105,9 @@ class Agent:
 
         return running_reward, step_num, grads
 
-def main():
-    agent = Agent(gym.make('CartPole-v0'), max_episodes=2000, max_steps=199)
-    agent.run_learner()
 
 if __name__ == "__main__":
-    main()
+    agent = Agent(gym.make('CartPole-v0'), max_episodes=2000, max_steps=199)
+    agent.run_learner()
 
 
