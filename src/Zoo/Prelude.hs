@@ -13,6 +13,7 @@ import Control.Monad                 as X
 import Control.MonadEnv              as X (Initial(..), Obs(..))
 import Control.Monad.IO.Class        as X (liftIO, MonadIO)
 import Control.Monad.Reader.Class    as X (MonadReader)
+import Control.Monad.State.Class     as X (MonadState)
 import Control.Monad.Trans           as X (lift)
 import Control.Monad.Trans.Except    as X hiding (liftCallCC, liftListen, liftPass)
 import Control.Monad.Trans.Maybe     as X (MaybeT(..))

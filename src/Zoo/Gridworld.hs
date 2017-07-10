@@ -1,28 +1,23 @@
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Zoo.Gridworld where
 
-class GridworldEnv(gym.Env):
-
-    class GridObj:
-        def __init__(self, size, intensity, channel, reward, name):
-            self.x         = coordinates[0]
-            self.y         = coordinates[1]
-            self.size      = size
-            self.intensity = intensity
-            self.channel   = channel
-            self.reward    = reward
-            self.name      = name
-
-    metadata = {'render.modes': ['human']}
+import Zoo.Prelude
 
 newtype Gridworld x = Gridworld { unGridworld :: StateT (Obj, [Obj]) IO x }
-  deriving ()
+  deriving
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadState (Obj, [Obj])
+    )
+
 
 data Directions
   = Four
   | Two
 
-data UDLR = Up | Down | Left | Right
-data LR   =             Left | Right
+data UDLR = ActUp | ActDown | ActLeft | ActRight
 
 data GridworldConf = GridworldConf
   { sizeX   :: Int
@@ -38,27 +33,28 @@ data Obj = Obj
   }
 
 mkGridworld :: GridworldConf -> Gridworld x
-mkGridworld conf = do
+mkGridworld conf = Gridworld $ do
   undefined
 
 getHero :: Gridworld Obj
-getHero = fst <$> get
+getHero = Gridworld $ fst <$> get
 
 setHero :: Obj -> Gridworld ()
-setHero h = do
+setHero h = Gridworld $ do
   env <- snd <$> get
-  set (h, env)
+  put (h, env)
 
-4step :: GridworldConf -> UDLR -> StateT Gridworld IO x
-4step GridworldConf{sizeX, sizeY} a =
+step :: GridworldConf -> UDLR -> Gridworld ()
+step GridworldConf{sizeX, sizeY} a = do
+  let sizeY' = fromMaybe sizeX sizeY
   hero <- getHero
   let heroX    = xPos hero
       heroY    = yPos hero
   case a of
-    Up    -> if heroY >= 1         then moveUp    hero else heroUnmoved
-    Down  -> if heroY <= sizeY - 2 then moveDown  hero else heroUnmoved
-    Left  -> if heroX >= 1         then moveLeft  hero else heroUnmoved
-    Right -> if heroX <= sizeX - 2 then moveRight hero else heroUnmoved
+    ActUp    -> if heroY >= 1          then moveUp    hero else heroUnmoved
+    ActDown  -> if heroY <= sizeY' - 2 then moveDown  hero else heroUnmoved
+    ActLeft  -> if heroX >= 1          then moveLeft  hero else heroUnmoved
+    ActRight -> if heroX <= sizeX  - 2 then moveRight hero else heroUnmoved
 
   where
     moveUp    hero = setHero $ hero { yPos = yPos hero - 1 }
