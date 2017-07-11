@@ -41,13 +41,14 @@ import Data.Traversable              as X
 import Data.Tuple                    as X
 import Data.Type.Combinator          as X
 import Data.Type.Index               as X
-import Data.Type.Product             as X hiding (toList)
+import Data.Type.Product             as X (Prod(..), only, pattern (::<))
 import Data.Vector                   as X (Vector)
 import Debug.Trace                   as X
 import GHC.Generics                  as X (Generic)
 import GHC.TypeLits                  as X
 import GHC.IO                        as X (evaluate)
-import Numeric.Backprop              as X (Op, op2')
+import Numeric.Backprop              as X (Op, BPOp, BPOpI, BVar, (#<~), (~$), (.$), (-$), gTuple)
+import Numeric.LinearAlgebra.Static  as X (L, R, (#>), outer, tr, (<.>), konst, extract)
 import TensorFlow.Core               as X (Tensor, Shape, Build, TensorData, Session, Ref, Value, ControlNode)
 import Text.Printf                   as X
 
@@ -92,3 +93,4 @@ oneHot :: Num f => Int -> Int -> V.Vector f
 oneHot len x
   | len > x   = V.replicate len 0 `V.unsafeUpd` [(fromIntegral x, 1)]
   | otherwise = error "cannot one-hot encode a int that is greater than size of vector"
+

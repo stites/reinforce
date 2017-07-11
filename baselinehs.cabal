@@ -11,7 +11,7 @@ cabal-version:  >= 1.10
 library
   hs-source-dirs:
       src
-  default-extensions: BangPatterns ConstraintKinds DataKinds DeriveGeneric FlexibleContexts GADTs KindSignatures LambdaCase NamedFieldPuns NoImplicitPrelude OverloadedStrings TupleSections ViewPatterns
+  default-extensions: BangPatterns ConstraintKinds DataKinds DeriveGeneric FlexibleContexts GADTs KindSignatures LambdaCase NamedFieldPuns NoImplicitPrelude OverloadedStrings PatternSynonyms TupleSections ViewPatterns
   build-depends:
       base
     , bifunctors
@@ -41,8 +41,10 @@ library
     , generics-sop
     , accelerate
     , accelerate-llvm-native
+    , hmatrix
   exposed-modules:
       QNetwork
+      QNetworkBackprop
       Zoo.Gridworld
       Zoo.Prelude
   default-language: Haskell2010
