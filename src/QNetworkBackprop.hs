@@ -32,6 +32,8 @@ infix 1 &<
 a &&< b = a ::< b ::< _z
 infix 1 &&<
 
+_z :: Prod f '[]
+_z = Ø
 
 -- =========================================== --
 -- describe a NN
@@ -141,16 +143,16 @@ vkonst = BP.op1' $ \x -> (x, \_ -> x)
 runLayer :: (KnownNat2 i o) => BPOp s '[ R i, Layer i o ] (R o)
 runLayer = BP.withInps $ \(x :< l :< _) -> do
     w :< b :< _ <- gTuple #<~ l
-    y <- matVec ~$ (w :< only x)
+    y <- matVec ~$ (w &< x)
     return $ y + b
 
 
 runNetwork :: (KnownNat3 i h o) => BPOp s '[ R i, Network i h o ] (R o)
 runNetwork = BP.withInps $ \(inp :< net :< _) -> do
     l1 :< l2 :< _ <- gTuple #<~ net
-    y <- runLayer -$ (inp        :< only l1)
-    z <- runLayer -$ (logistic y :< only l2)
-    softmax       -$ (only z               )
+    y <- runLayer -$ (inp        &< l1)
+    z <- runLayer -$ (logistic y &< l2)
+    softmax       -$ (only z          )
   where
     -- for layer activation
     logistic :: Floating a => a -> a
@@ -160,23 +162,20 @@ runNetwork = BP.withInps $ \(inp :< net :< _) -> do
     softmax = BP.withInps $ \(x :< _) -> do
       expX <- BP.bindVar (exp x)
       totX <- vsum ~$ only expX
-      scale ~$ (1 / totX :< only expX)
+      scale ~$ (1 / totX &< expX)
 
 
 -------------------------------------------------------------------------------
 -- create our inference and gradient functions
 -------------------------------------------------------------------------------
-_z :: Prod f '[]
-_z = Ø
-
 
 runNetOnInputs :: KnownNat3 i h o => R i -> Network i h o -> R o
-runNetOnInputs input net = BP.evalBPOp runNetwork (input ::< net ::< _z)
+runNetOnInputs input net = BP.evalBPOp runNetwork (input &&< net)
 
 
 getGradient :: KnownNat3 i h o => R i -> Network i h o -> Network i h o
 getGradient input net =
-  case BP.gradBPOp runNetwork (input ::< net ::< _z) of
+  case BP.gradBPOp runNetwork (input &&< net) of
      (gradInpts ::< gradNet ::< _) -> gradNet
 
 
