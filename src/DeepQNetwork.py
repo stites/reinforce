@@ -1,5 +1,5 @@
 from Zoo.Prelude   import *
-from Zoo.Gridworld import Gridworld, gameEnv
+from Zoo.Gridworld import Gridworld
 import os
 import random
 
@@ -287,10 +287,11 @@ class Agent:
                     print("Percent of succesful episodes: " + str(sum(rList)/self.max_episodes) + "%")
 
                 if len(rList) % 10 == 0:
-                    print(ep_num, all_steps, np.mean(rList[-10:]), epsilon)
+                    print(ep_num + 1, all_steps, np.mean(rList[-10:]), epsilon)
 
             self.save(sess, saver, ep_num)
             print("Percent of succesful episodes: " + str(sum(rList)/self.max_episodes) + "%")
+            return jList, rList
 
 if __name__ == "__main__":
     agent = Agent(Gridworld(partial=False, sizeX=5), load_model=True)
