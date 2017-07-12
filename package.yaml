@@ -1,4 +1,4 @@
-name: baselinehs
+name: agentzoo
 version: 0.1.0.0
 
 default-extensions:
@@ -54,6 +54,14 @@ dependencies:
 
 library:
   source-dirs: src
+
+executables:
+  report-server:
+    source-dirs: exe
+    main: ReportServer.hs
+    dependencies:
+      - base
+      - agentzoo
 
 #tests:
 #  doctest:

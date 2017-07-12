@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 
-name:           baselinehs
+name:           agentzoo
 version:        0.1.0.0
 license-file:   LICENSE
 build-type:     Simple
@@ -47,4 +47,43 @@ library
       QNetworkBackprop
       Zoo.Gridworld
       Zoo.Prelude
+  default-language: Haskell2010
+
+executable report-server
+  main-is: ReportServer.hs
+  hs-source-dirs:
+      exe
+  default-extensions: BangPatterns ConstraintKinds DataKinds DeriveGeneric FlexibleContexts GADTs KindSignatures LambdaCase NamedFieldPuns NoImplicitPrelude OverloadedStrings PatternSynonyms TupleSections ViewPatterns
+  build-depends:
+      base
+    , bifunctors
+    , bytestring
+    , containers
+    , deepseq
+    , dlist
+    , microlens-platform
+    , monad-loops
+    , mtl
+    , mwc-random
+    , reinforce
+    , safe-exceptions
+    , statistics
+    , text
+    , unordered-containers
+    , vector
+    , transformers
+    , proto-lens
+    , tensorflow-core-ops
+    , tensorflow-opgen
+    , tensorflow-ops
+    , tensorflow-proto
+    , tensorflow
+    , backprop
+    , type-combinators
+    , generics-sop
+    , accelerate
+    , accelerate-llvm-native
+    , hmatrix
+    , base
+    , agentzoo
   default-language: Haskell2010
