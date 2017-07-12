@@ -11,6 +11,8 @@ module Zoo.Prelude
   , lastN
   , divisibleBy
   , oneHot
+  , getState
+  , putState
   ) where
 
 import Prelude                       as X hiding (id)
@@ -19,7 +21,7 @@ import Control.Arrow                 as X
 import Control.Exception.Safe        as X
 import Control.Monad                 as X
 import Control.MonadEnv              as X (Initial(..), Obs(..))
-import Control.MonadMWCRandom        as X (MWCRandT(..))
+import Control.MonadMWCRandom        as X (MWCRandT(..), MWCRand(..))
 import Control.Monad.IO.Class        as X (liftIO, MonadIO)
 import Control.Monad.Reader.Class    as X (MonadReader)
 import Control.Monad.State.Class     as X (MonadState)
@@ -32,6 +34,7 @@ import Control.DeepSeq               as X
 import Data.Bitraversable            as X
 import Data.DList                    as X (DList)
 import Data.Function                 as X (on)
+import Data.Functor.Identity         as X (Identity)
 import Data.Foldable                 as X
 import Data.Int                      as X (Int32, Int64)
 import Data.List                     as X (genericLength, genericTake, groupBy)
@@ -94,3 +97,8 @@ oneHot len x
   | len > x   = V.replicate len 0 `V.unsafeUpd` [(fromIntegral x, 1)]
   | otherwise = error "cannot one-hot encode a int that is greater than size of vector"
 
+getState :: Monad m => StateT s m s
+getState = get
+
+putState :: Monad m => s -> StateT s m ()
+putState = put

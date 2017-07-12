@@ -33,8 +33,7 @@ gamma :: Double
 gamma = 0.99
 
 main :: IO ()
-main = do
-  g <- MWC.createSystemRandom
+main = MWC.withSystemRandom $ \g ->
   TF.runSession (MMWC.runMWCRandT (runDefaultEnvironmentT False learn) g)
   >>= \case
     Left err                       -> throwString (show err)

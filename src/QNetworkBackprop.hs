@@ -1,21 +1,24 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeApplications #-}
 module QNetworkBackprop where
 
 import Zoo.Prelude
 import Control.MonadEnv.Internal
 import Environments.Gym.ToyText.FrozenLakeV0 hiding (Left, Right)
+import System.Random.MWC (Variate(..))
 
-import qualified System.Random.MWC       as MWC (createSystemRandom)
+import qualified System.Random.MWC       as MWC (withSystemRandom, createSystemRandom)
+import qualified System.Random.MWC.Distributions as MWC (uniformShuffle)
 import qualified Control.MonadMWCRandom  as MWC
 import qualified Control.MonadEnv        as Env
 import qualified Data.Logger             as Logger
 import qualified Data.DList              as DL
 import qualified Data.Vector             as V
 import qualified Numeric.Backprop        as BP
-import qualified Numeric.LinearAlgebra   as LA
+import qualified Numeric.LinearAlgebra   as LA (sumElements)
 import qualified Numeric.LinearAlgebra.Static  as LA
 import qualified Generics.SOP            as SOP
+import qualified GHC.Exts            as Exts
 
 type Event = Logger.Event Reward StateFL Action
 
@@ -58,33 +61,48 @@ instance SOP.Generic (Network i h o)
 instance NFData (Network i h o)
 
 instance (KnownNat2 i o) => Num (Layer i o) where
-    Layer w1 b1 + Layer w2 b2 = Layer (w1 + w2) (b1 + b2)
-    Layer w1 b1 - Layer w2 b2 = Layer (w1 - w2) (b1 - b2)
-    Layer w1 b1 * Layer w2 b2 = Layer (w1 * w2) (b1 * b2)
-    abs    (Layer w b)        = Layer (abs    w) (abs    b)
-    signum (Layer w b)        = Layer (signum w) (signum b)
-    negate (Layer w b)        = Layer (negate w) (negate b)
-    fromInteger x             = Layer (fromInteger x) (fromInteger x)
+  Layer w1 b1 + Layer w2 b2 = Layer (w1 + w2) (b1 + b2)
+  Layer w1 b1 - Layer w2 b2 = Layer (w1 - w2) (b1 - b2)
+  Layer w1 b1 * Layer w2 b2 = Layer (w1 * w2) (b1 * b2)
+  abs    (Layer w b)        = Layer (abs    w) (abs    b)
+  signum (Layer w b)        = Layer (signum w) (signum b)
+  negate (Layer w b)        = Layer (negate w) (negate b)
+  fromInteger x             = Layer (fromInteger x) (fromInteger x)
 
 instance (KnownNat3 i h o) => Num (Network i h o) where
-    Net a b + Net c d = Net (a + c) (b + d)
-    Net a b - Net c d = Net (a - c) (b - d)
-    Net a b * Net c d = Net (a * c) (b * d)
-    abs    (Net a b)  = Net (abs    a) (abs    b)
-    signum (Net a b)  = Net (signum a) (signum b)
-    negate (Net a b)  = Net (negate a) (negate b)
-    fromInteger x     = Net (fromInteger x) (fromInteger x)
+  Net a b + Net c d = Net (a + c) (b + d)
+  Net a b - Net c d = Net (a - c) (b - d)
+  Net a b * Net c d = Net (a * c) (b * d)
+  abs    (Net a b)  = Net (abs    a) (abs    b)
+  signum (Net a b)  = Net (signum a) (signum b)
+  negate (Net a b)  = Net (negate a) (negate b)
+  fromInteger x     = Net (fromInteger x) (fromInteger x)
 
 instance (KnownNat2 i o) => Fractional (Layer i o) where
-    Layer w1 b1 / Layer w2 b2 = Layer (w1 / w2) (b1 / b2)
-    recip (Layer w b)         = Layer (recip w) (recip b)
-    fromRational x            = Layer (fromRational x) (fromRational x)
+  Layer w1 b1 / Layer w2 b2 = Layer (w1 / w2) (b1 / b2)
+  recip (Layer w b)         = Layer (recip w) (recip b)
+  fromRational x            = Layer (fromRational x) (fromRational x)
 
 instance (KnownNat3 i h o) => Fractional (Network i h o) where
-    Net a b / Net c d = Net (a / c) (b / d)
-    recip (Net a b)   = Net (recip a) (recip b)
-    fromRational x    = Net (fromRational x) (fromRational x)
+  Net a b / Net c d = Net (a / c) (b / d)
+  recip (Net a b)   = Net (recip a) (recip b)
+  fromRational x    = Net (fromRational x) (fromRational x)
 
+instance KnownNat n => MWC.Variate (R n) where
+  uniform g = LA.randomVector <$> MWC._uniform g <*> pure LA.Uniform
+  uniformR (l, h) g = (\x -> x * (h - l) + l) <$> MWC._uniform g
+
+instance (KnownNat2 m n) => MWC.Variate (L m n) where
+  uniform g = LA.uniformSample <$> MWC._uniform g <*> pure 0 <*> pure 1
+  uniformR (l, h) g = (\x -> x * (h - l) + l) <$> MWC._uniform g
+
+instance (KnownNat2 i o) => MWC.Variate (Layer i o) where
+  uniform g = Layer <$> MWC._uniform g <*> MWC._uniform g
+  uniformR (l, h) g = (\x -> x * (h - l) + l) <$> MWC._uniform g
+
+instance (KnownNat3 i h o) => MWC.Variate (Network i h o) where
+  uniform g = Net <$> MWC._uniform g <*> MWC._uniform g
+  uniformR (l, h) g = (\x -> x * (h - l) + l) <$> MWC._uniform g
 
 -------------------------------------------------------------------------------
 -- Define backprop primatives
@@ -201,6 +219,158 @@ train gamma xs trueRwds net =
 
 trainList :: forall i h o . KnownNat3 i h o => Double -> [(R i, R o)] -> Network i h o -> Network i h o
 trainList gamma observed net = foldl' (\n (x, y) -> train gamma x y n) net observed
+
+-------------------------------------------------------------------------------
+-- run on environment
+-------------------------------------------------------------------------------
+
+maxEpisodes :: Int
+maxEpisodes = 3000
+
+maxSteps :: Int
+maxSteps = 99
+
+gamma :: Double
+gamma = 0.99
+
+main :: IO ()
+main =
+  MWC.createSystemRandom
+  >>= MWC.runMWCRandT (runDefaultEnvironmentT False learn)
+  >>= \case
+    Left err                       -> throwString (show err)
+    Right (histToRewards -> rlist) -> report rlist
+
+  where
+    histToRewards :: DList Event -> [Reward]
+    histToRewards (DL.toList->rs) = fmap sum episodes
+      where
+        episodes :: [[Reward]]
+        episodes = (fmap.fmap) snd $
+          groupBy (\l r -> fst l == fst r) $
+            fmap (\(Logger.Event i r _ _) -> (i, r)) rs
+
+
+report :: MonadIO io => [Reward] -> io ()
+report rwds = do
+  let per = sum rwds / fromIntegral (genericLength rwds)
+  let last50Per = sum (lastN 50 rwds) / 50
+  printIO $ "Percent successful episodes: " ++ show per       ++ "%"
+  printIO $ "Percent successful last 50 : " ++ show last50Per ++ "%"
+
+
+learn :: EnvironmentT (MWCRandT IO) (DList (DList (Reward, Action)))
+learn = do
+  (net0 :: Network 16 4 4) <- lift $ MWC.uniformR (-0.5, 0.5)
+  (_, (finalNet, hists)) <- flip runStateT (net0, mempty) . forM_ [1..] $ runEpisode
+  pure hists
+--     train' <- liftIO . fmap V.toList $ MWC.uniformShuffle (V.fromList train) g
+--     liftIO $ printf "[Epoch %d]\n" (e :: Int)
+--
+--     forM_ ([1..] `zip` chunksOf batch train') $ \(b, chnk) -> StateT $ \n0 -> do
+--       printf "(Batch %d)\n" (b :: Int)
+--
+--       t0 <- getCurrentTime
+--       n' <- evaluate . force $ trainList rate chnk n0
+--       t1 <- getCurrentTime
+--       printf "Trained on %d points in %s.\n" batch (show (t1 `diffUTCTime` t0))
+--
+--       let trainScore = testNet chnk n'
+--           testScore  = testNet test n'
+--       printf "Training error:   %.2f%%\n" ((1 - trainScore) * 100)
+--       printf "Validation error: %.2f%%\n" ((1 - testScore ) * 100)
+--
+
+  where
+    runEpisode :: Int -> StateT (Network 16 4 4, DList (DList (Reward, Action))) (EnvironmentT (MWCRandT IO)) ()
+    runEpisode epNum = do
+      (net, hist) <- getState
+      obs <- lift Env.reset
+      case obs of
+        EmptyEpisode -> return ()
+        Initial s    -> do
+          (net, rs) <- lift $ rolloutEpisode epNum net 0 (decayEpsilon epNum) s DL.empty
+          when (epNum `divisibleBy` 100) $ report (fst <$> DL.toList rs)
+          putState (net, hist `DL.snoc` rs)
+
+
+decayEpsilon :: Int -> Float
+decayEpsilon epNum = 1.0 / ((epNum // 50) + 10)
+
+
+epsilonGreedyChoice :: Action -> Float -> EnvironmentT (MWCRandT IO) Action
+epsilonGreedyChoice a e =
+  lift (MWC.uniformR (0, 1))
+  >>= \p->
+    if p < e
+    then randomAction
+    else pure a
+
+
+randomAction :: EnvironmentT (MWCRandT IO) Action
+randomAction = toEnum <$> (lift $ MWC.uniformR (0, fromEnum (maxBound :: Action)))
+
+
+rolloutEpisode
+  :: Int
+  -> Network 16 4 4
+  -> Int
+  -> Float
+  -> StateFL
+  -> DList (Reward, Action)
+  -> EnvironmentT (MWCRandT IO) (Network 16 4 4, DList (Reward, Action))
+rolloutEpisode episodeNum model stepNum epsilon state dl
+  | stepNum > maxSteps = return (model, dl)
+  | otherwise = do
+    let
+      qs :: R 4
+      a' :: Action
+      (qs, a') = chooseAction model state
+
+    a        <- epsilonGreedyChoice a' epsilon
+    next     <- Env.step a
+    case next of
+      Next rwd nextState -> do
+        newNet <- liftIO $ updateAgent state a rwd nextState qs model
+        rolloutEpisode episodeNum newNet (stepNum+1) epsilon nextState (dl `DL.snoc` (rwd, a))
+
+      Done rwd (Just nextState) -> do
+        newNet <- liftIO $ updateAgent state a rwd nextState qs model
+        pure $ (newNet, dl `DL.snoc` (rwd, a))
+
+  where
+    updateAgent :: MonadIO io => StateFL -> Action -> Double -> StateFL -> R 4 -> (Network 16 4 4) -> io (Network 16 4 4)
+    updateAgent s a r s' qs net = do
+      let
+        q_next :: Double
+        q_next = maximum . Exts.toList . LA.extract . fst $ chooseAction net s'
+
+        targetQ :: Double
+        targetQ = realToFrac $ r + gamma * q_next
+
+        newNet :: Network 16 4 4
+        newNet = train gamma (stateToR16 state) (oneHotStatic r a) net
+
+      when (r /= 0) (printIO ("woot!", r, s, s'))
+      pure net
+
+oneHotStatic :: Reward -> Action -> R 4
+oneHotStatic r a = LA.vector $ fmap builder [minBound..maxBound]
+  where
+    builder :: Action -> Double
+    builder i = if fromEnum a == fromEnum i then r else 0
+
+chooseAction :: Network 16 4 4 -> StateFL -> (R 4, Action)
+chooseAction net state = (qs, a)
+  where
+    qs :: R 4
+    qs = runNetOnInputs (stateToR16 state) net
+
+    a :: Action
+    a = toEnum . V.maxIndex . V.fromList . Exts.toList . LA.extract $ qs
+
+stateToR16 :: StateFL -> R 16
+stateToR16 state = LA.vector (fmap fromIntegral $ toList $ toVector state)
 
 
 
