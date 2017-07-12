@@ -233,13 +233,15 @@ maxSteps = 99
 gamma :: Double
 gamma = 0.99
 
+type FLNetwork = Network 16 4 4
+
 main :: IO ()
 main =
   MWC.createSystemRandom
   >>= MWC.runMWCRandT (runDefaultEnvironmentT False learn)
   >>= \case
     Left err                       -> throwString (show err)
-    Right (histToRewards -> rlist) -> report rlist
+    Right (histToRewards -> rlist) -> report maxEpisodes rlist
 
   where
     histToRewards :: DList Event -> [Reward]
@@ -251,38 +253,23 @@ main =
             fmap (\(Logger.Event i r _ _) -> (i, r)) rs
 
 
-report :: MonadIO io => [Reward] -> io ()
-report rwds = do
-  let per = sum rwds / fromIntegral (genericLength rwds)
-  let last50Per = sum (lastN 50 rwds) / 50
-  printIO $ "Percent successful episodes: " ++ show per       ++ "%"
-  printIO $ "Percent successful last 50 : " ++ show last50Per ++ "%"
+report :: MonadIO io => Int -> [Reward] -> io ()
+report epn rwds = do
+  let s = sum rwds :: Double
+  let l = fromIntegral (genericLength rwds) :: Double
+  let last50Per = sum (lastN 50 rwds) / 50 :: Double
+  printIO $ show epn ++ " - Percent successful episodes: " ++ show (s / l)   ++ "%"
+  printIO $ show epn ++ " - Percent successful last 50 : " ++ show last50Per ++ "%"
+  printIO $ show epn ++ " - Total successful episodes  : " ++ show s
+  printIO $ show epn ++ " - Total rewards recorded     : " ++ show l
 
 
 learn :: EnvironmentT (MWCRandT IO) (DList (DList (Reward, Action)))
 learn = do
-  (net0 :: Network 16 4 4) <- lift $ MWC.uniformR (-0.5, 0.5)
-  (_, (finalNet, hists)) <- flip runStateT (net0, mempty) . forM_ [1..] $ runEpisode
-  pure hists
---     train' <- liftIO . fmap V.toList $ MWC.uniformShuffle (V.fromList train) g
---     liftIO $ printf "[Epoch %d]\n" (e :: Int)
---
---     forM_ ([1..] `zip` chunksOf batch train') $ \(b, chnk) -> StateT $ \n0 -> do
---       printf "(Batch %d)\n" (b :: Int)
---
---       t0 <- getCurrentTime
---       n' <- evaluate . force $ trainList rate chnk n0
---       t1 <- getCurrentTime
---       printf "Trained on %d points in %s.\n" batch (show (t1 `diffUTCTime` t0))
---
---       let trainScore = testNet chnk n'
---           testScore  = testNet test n'
---       printf "Training error:   %.2f%%\n" ((1 - trainScore) * 100)
---       printf "Validation error: %.2f%%\n" ((1 - testScore ) * 100)
---
-
+  (net0 :: FLNetwork) <- lift $ MWC.uniformR (-0.5, 0.5)
+  snd . snd <$> runStateT (forM_ [1..] runEpisode) (net0, mempty)
   where
-    runEpisode :: Int -> StateT (Network 16 4 4, DList (DList (Reward, Action))) (EnvironmentT (MWCRandT IO)) ()
+    runEpisode :: Int -> StateT (FLNetwork, DList (DList (Reward, Action))) (EnvironmentT (MWCRandT IO)) ()
     runEpisode epNum = do
       (net, hist) <- getState
       obs <- lift Env.reset
@@ -290,7 +277,7 @@ learn = do
         EmptyEpisode -> return ()
         Initial s    -> do
           (net, rs) <- lift $ rolloutEpisode epNum net 0 (decayEpsilon epNum) s DL.empty
-          when (epNum `divisibleBy` 100) $ report (fst <$> DL.toList rs)
+          when (epNum `divisibleBy` 100) $ report epNum (fst <$> DL.toList rs)
           putState (net, hist `DL.snoc` rs)
 
 
@@ -313,12 +300,12 @@ randomAction = toEnum <$> (lift $ MWC.uniformR (0, fromEnum (maxBound :: Action)
 
 rolloutEpisode
   :: Int
-  -> Network 16 4 4
+  -> FLNetwork
   -> Int
   -> Float
   -> StateFL
   -> DList (Reward, Action)
-  -> EnvironmentT (MWCRandT IO) (Network 16 4 4, DList (Reward, Action))
+  -> EnvironmentT (MWCRandT IO) (FLNetwork, DList (Reward, Action))
 rolloutEpisode episodeNum model stepNum epsilon state dl
   | stepNum > maxSteps = return (model, dl)
   | otherwise = do
@@ -339,7 +326,7 @@ rolloutEpisode episodeNum model stepNum epsilon state dl
         pure $ (newNet, dl `DL.snoc` (rwd, a))
 
   where
-    updateAgent :: MonadIO io => StateFL -> Action -> Double -> StateFL -> R 4 -> (Network 16 4 4) -> io (Network 16 4 4)
+    updateAgent :: MonadIO io => StateFL -> Action -> Double -> StateFL -> R 4 -> (FLNetwork) -> io (FLNetwork)
     updateAgent s a r s' qs net = do
       let
         q_next :: Double
@@ -348,10 +335,10 @@ rolloutEpisode episodeNum model stepNum epsilon state dl
         targetQ :: Double
         targetQ = realToFrac $ r + gamma * q_next
 
-        newNet :: Network 16 4 4
+        newNet :: FLNetwork
         newNet = train gamma (stateToR16 state) (oneHotStatic r a) net
 
-      when (r /= 0) (printIO ("woot!", r, s, s'))
+      -- when (r /= 0) (printIO ("woot!", r, s, s'))
       pure net
 
 oneHotStatic :: Reward -> Action -> R 4
@@ -360,7 +347,7 @@ oneHotStatic r a = LA.vector $ fmap builder [minBound..maxBound]
     builder :: Action -> Double
     builder i = if fromEnum a == fromEnum i then r else 0
 
-chooseAction :: Network 16 4 4 -> StateFL -> (R 4, Action)
+chooseAction :: FLNetwork -> StateFL -> (R 4, Action)
 chooseAction net state = (qs, a)
   where
     qs :: R 4
