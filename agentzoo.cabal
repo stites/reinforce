@@ -72,18 +72,12 @@ executable report-server
     , unordered-containers
     , vector
     , transformers
-    , proto-lens
-    , tensorflow-core-ops
-    , tensorflow-opgen
-    , tensorflow-ops
-    , tensorflow-proto
-    , tensorflow
-    , backprop
-    , type-combinators
-    , generics-sop
-    , accelerate
-    , accelerate-llvm-native
-    , hmatrix
     , base
     , agentzoo
+    , reactive-banana
+    , servant
+    , servant-server
+    , aeson
+    , warp
+    , stm
   default-language: Haskell2010

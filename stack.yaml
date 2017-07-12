@@ -12,6 +12,11 @@ packages:
   subdirs:
     - binding-hs
   extra-dep: true
+- location:
+    git: git@github.com:mstksg/backprop.git
+    commit: '6bd8e2'
+  extra-dep: true
+
 extra-deps:
 - accelerate-1.0.0.0
 - accelerate-llvm-1.0.0.0
@@ -23,4 +28,5 @@ extra-deps:
 - tensorflow-opgen-0.1.0.0
 - tensorflow-ops-0.1.0.0
 - tensorflow-proto-0.1.0.0
-resolver: lts-8.15
+- reactive-banana-1.1.0.1
+resolver: lts-8.22

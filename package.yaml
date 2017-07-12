@@ -36,24 +36,24 @@ dependencies:
   - vector
   - transformers
 
-  # target 1
-  - proto-lens
-  - tensorflow-core-ops
-  - tensorflow-opgen
-  - tensorflow-ops
-  - tensorflow-proto
-  - tensorflow
-
-  # target 2
-  - backprop
-  - type-combinators
-  - generics-sop
-  - accelerate
-  - accelerate-llvm-native
-  - hmatrix
-
 library:
   source-dirs: src
+  dependencies:
+    # target 1
+    - proto-lens
+    - tensorflow-core-ops
+    - tensorflow-opgen
+    - tensorflow-ops
+    - tensorflow-proto
+    - tensorflow
+
+    # target 2
+    - backprop
+    - type-combinators
+    - generics-sop
+    - accelerate
+    - accelerate-llvm-native
+    - hmatrix
 
 executables:
   report-server:
@@ -62,6 +62,13 @@ executables:
     dependencies:
       - base
       - agentzoo
+      - reactive-banana
+      - servant
+      - servant-server
+      - aeson
+      - warp
+      - stm
+
 
 #tests:
 #  doctest:
