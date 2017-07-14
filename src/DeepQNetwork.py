@@ -1,75 +1,11 @@
-from Zoo.Prelude   import *
-from Zoo.Gridworld import Gridworld
-import os
-import random
-
-class ReplayBuffer:
-    def __init__(self, buffer_size=50000):
-        self.buffer = []
-        self.buffer_size = buffer_size
-
-    def add(self, s, a, r, s1, done):
-        self.append(np.reshape(np.array([s,a,r,s1,done]),[1,5]))
-
-    def append(self, experience):
-        lqueue = len(self.buffer)
-        lexp   = len(experience)
-        if lqueue + lexp >= self.buffer_size:
-            self.buffer[0:(lqueue + lexp - self.buffer_size)] = []
-        self.buffer.extend(experience)
-
-
-    def sample(self, size):
-        return np.reshape(np.array(random.sample(self.buffer, size)), [size, 5])
-
+from Zoo.Prelude       import *
+from Zoo.ReplayBuffer  import ReplayBuffer
+from Zoo.Gridworld     import Gridworld
+from Zoo.BasicConvoNet import ConvolutionNetwork
 
 class DuelingNetwork:
-    class ConvolutionNetwork:
-        def __init__(self, xlen, ylen, chans, hidden_size):
-            flatten_flag = -1
-
-            scalar_input = tf.placeholder(shape=[None, xlen*ylen*chans], dtype=tf.float32)
-            imageIn      = tf.reshape(scalar_input, shape=[flatten_flag, xlen, ylen, chans])
-
-            conv1 = slim.conv2d(
-                biases_initializer=None,
-                inputs=imageIn,          # input layer
-                num_outputs=32,          # # of filters to apply to the previous layer
-                kernel_size=[8,8],       # window size to slide over the previous layer
-                stride=[4,4],            # pixels to skip as we move the window across the layer
-                padding='VALID')         # if we want the window to slide over only the bottom
-                                         # layer ("VALID") or add padding around it ("SAME") to
-                                         # ensure that the convolutional layer has the same
-                                         # dimensions as the previous layer.
-            conv2 = slim.conv2d(
-                inputs=conv1,
-                num_outputs=64,
-                kernel_size=[4,4],
-                stride=[2,2],
-                padding='VALID',
-                biases_initializer=None)
-
-            conv3 = slim.conv2d(
-                inputs=conv2,
-                num_outputs=64,
-                kernel_size=[3,3],
-                stride=[1,1],
-                padding='VALID',
-                biases_initializer=None)
-
-            conv4 = slim.conv2d(
-                inputs=conv3,
-                num_outputs=hidden_size,
-                kernel_size=[7,7],
-                stride=[1,1],
-                padding='VALID',
-                biases_initializer=None)
-
-            self.scalar_input = scalar_input
-            self.output       = conv4
-
     def __init__(self, xlen, ylen, chans, hidden_size, action_size):
-        self.cnn = self.ConvolutionNetwork(xlen, ylen, chans, hidden_size)
+        self.cnn = ConvolutionNetwork(xlen, ylen, chans, hidden_size)
         self.input = self.cnn.scalar_input
 
         # We take the output from the final convolutional layer and split
@@ -93,7 +29,7 @@ class DuelingNetwork:
         # between the target and prediction Q values.
         targetQ = tf.placeholder(shape=[None], dtype=tf.float32)
         actions = tf.placeholder(shape=[None], dtype=tf.int32)
-        qValues = tf.reduce_sum(tf.multiply(qOut, tf_one_hot(actions, action_size)), axis=1)
+        qValues = tf.reduce_sum(tf.multiply(qOut, tf.one_hot(actions, action_size, dtype=tf.float32)), axis=1)
 
         loss        = tf.reduce_mean(tf.square(targetQ - qValues))
         updateModel = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(loss)
@@ -104,10 +40,6 @@ class DuelingNetwork:
         self.targetQ     = targetQ
         self.actions     = actions
         self.updateModel = updateModel
-
-
-def tf_one_hot(ph, size, dtype=tf.float32):
-    return tf.one_hot(ph, size, dtype=dtype)
 
 
 class Agent:

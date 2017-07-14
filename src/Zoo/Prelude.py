@@ -4,6 +4,11 @@ import pandas      as pd
 import tensorflow  as tf
 import tensorflow.contrib.slim as slim
 
+import random
+import os
+import csv
+import itertools
+
 from functools import *
 
 __all__ = [
@@ -12,6 +17,10 @@ __all__ = [
     "pd",
     "tf",
     "slim",
+    "random",
+    "os",
+    "csv",
+    "itertools",
 
     "partial",
     "partialmethod",
@@ -208,6 +217,13 @@ class EpisodeWriter(Writer):
         assert type(action) == int, "action must be recorded as an int"
         assert type(isdone) == int, "done must be recorded as an int"
 
+    def tellAll(self, observed_state, reward, action, isdone, advantages, state_value):
+        super(EpisodeWriter, self).tell(observed_state, reward, action, isdone, advantages, state_value)
+        assert type(observed_state) == np.ndarray, "observed state must be recorded as a numpy array"
+        assert type(reward) == float, "reward must be recorded as a float"
+        assert type(action) == int, "action must be recorded as an int"
+        assert type(isdone) == int, "done must be recorded as an int"
+
     def listen(self):
         return np.array(super(EpisodeWriter, self).listen(), dtype=self.dtype)
 
@@ -223,3 +239,18 @@ class EpisodeWriter(Writer):
     def dones(self):
         return self.listen()[:,3][np.newaxis].T
 
+class ReportWriter(Writer):
+    def __init__(self):
+        super(ReportWriter, self).__init__()
+
+    def tell(self, episodewriter):
+        assert type(episodewriter) == EpsisodeWriter, "must be an episode writer"
+        rs = episodewriter.rewards()
+        super(ReportWriter, self).tell(episodewriter, rs.sum(), len(rs))
+
+        # episode #
+        # episode length
+        # episode total rwd
+        # episode details:
+        # -> action, reward, (forall a Action a=>. advantage(a)), Value, State
+ 
