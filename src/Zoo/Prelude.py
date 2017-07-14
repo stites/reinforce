@@ -38,6 +38,7 @@ __all__ = [
     "lmap",
     "npmap",
     "imap",
+    "lzip",
 
     "head",
     "tail",
@@ -61,7 +62,8 @@ __all__ = [
     "space_sizes",
     "flatten_tensor",
     "Writer",
-    "EpisodeWriter"
+    "EpisodeWriter",
+    "ReportWriter"
     ]
 
 _p = partial
@@ -99,6 +101,9 @@ def npmap(fn, ls):
 
 def imap(fn, ls):
     return lmap(lambda xs: fn(xs[0], xs[1]), enumerate(ls))
+
+def lzip(*args):
+    return list(zip(*args))
 
 def head(ls):
     return ls[0]
@@ -211,11 +216,8 @@ class EpisodeWriter(Writer):
         self.dtype = dtype
 
     def tell(self, observed_state, reward, action, isdone):
-        super(EpisodeWriter, self).tell(observed_state, reward, action, isdone)
+        super(EpisodeWriter, self).tell(observed_state, float(reward), int(action), int(isdone))
         assert type(observed_state) == np.ndarray, "observed state must be recorded as a numpy array"
-        assert type(reward) == float, "reward must be recorded as a float"
-        assert type(action) == int, "action must be recorded as an int"
-        assert type(isdone) == int, "done must be recorded as an int"
 
     def tellAll(self, observed_state, reward, action, isdone, advantages, state_value):
         super(EpisodeWriter, self).tell(observed_state, reward, action, isdone, advantages, state_value)

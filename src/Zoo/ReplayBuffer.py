@@ -5,15 +5,22 @@ class ReplayBuffer:
         self.buffer = []
         self.buffer_size = buffer_size
 
-    def add(self, s, a, r, s1, done):
+    def add_step(self, s, a, r, s1, done):
+        self._resize(1)
         self.append(np.reshape(np.array([s,a,r,s1,done]),[1,5]))
 
     def append(self, experience):
-        lqueue = len(self.buffer)
-        lexp   = len(experience)
-        if lqueue + lexp >= self.buffer_size:
-            self.buffer[0:(lqueue + lexp - self.buffer_size)] = []
+        self._resize(len(experience))
         self.buffer.extend(experience)
+
+    def add_episode(self, episode):
+        self._resize(1)
+        self.buffer.append(episode)
+
+    def _resize(self, item_size):
+        lqueue = len(self.buffer)
+        if lqueue + item_size >= self.buffer_size:
+            self.buffer[0:(lqueue + item_size - self.buffer_size)] = []
 
     def sample(self, size):
         return np.reshape(np.array(random.sample(self.buffer, size)), [size, 5])
