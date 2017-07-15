@@ -2,7 +2,6 @@ from Zoo.Prelude import *
 
 import threading
 import multiprocessing
-import scipy.signal
 
 from random import choice
 from time import sleep, time
@@ -11,7 +10,7 @@ from time import sleep, time
 #This code allows gifs to be saved of the training episode for use in the Control Center.
 def make_gif(images, fname, duration=2, true_image=False,salience=False,salIMGS=None):
   import moviepy.editor as mpy
-  
+
   def make_frame(t):
     try:
       x = images[int(len(images)/duration*t)]
@@ -22,7 +21,7 @@ def make_gif(images, fname, duration=2, true_image=False,salience=False,salIMGS=
       return x.astype(np.uint8)
     else:
       return ((x+1)/2*255).astype(np.uint8)
-  
+
   def make_mask(t):
     try:
       x = salIMGS[int(len(salIMGS)/duration*t)]
@@ -52,13 +51,6 @@ def update_target_graph(from_scope,to_scope):
         op_holder.append(to_var.assign(from_var))
     return op_holder
 
-# Processes Doom screen image to produce cropped and resized image. 
-def process_frame_(frame):
-    s = frame[10:-10,30:-30]
-    s = scipy.misc.imresize(s,[80,80])
-    s = np.reshape(s,[np.prod(s.shape)]) / 255.0
-    return s
-
 def process_frame(I):
   """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
   I = I[35:195] # crop
@@ -69,9 +61,15 @@ def process_frame(I):
   return I.astype(np.float).ravel()
 
 
-# Discounting function used to calculate discounted returns.
-def discount(x, gamma):
-    return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
+def discount(r, gamma):
+  """ take 1D float array of rewards and compute discounted reward """
+  discounted_r = np.zeros_like(r)
+  running_add = 0
+  for t in reversed(range(0, r.size)):
+    if r[t] != 0: running_add = 0
+    running_add = running_add * gamma + r[t]
+    discounted_r[t] = running_add
+  return discounted_r
 
 #Used to initialize weights for policy and value output layers
 def normalized_columns_initializer(std=1.0):
@@ -343,7 +341,7 @@ if __name__ == '__main__':
             workers.append(Worker(gym.make('Pong-v0'),i,s_size,a_size,trainer,model_path,global_episodes))
         saver = tf.train.Saver(max_to_keep=5)
 
-    with tf.Session() as sess:
+    with tf.Session(config=sess_config) as sess:
         coord = tf.train.Coordinator()
         if load_model == True:
             print ('Loading Model...')
