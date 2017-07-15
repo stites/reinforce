@@ -291,21 +291,21 @@ class Agent:
 
 
                 #Add the episode to the experience buffer
-                self.experience.add_episode(lzip(np.array(episodeBuffer))))
+                self.experience.add_episode(lzip(np.array(episodeBuffer)))
                 jList.append(j)
                 rList.append(rAll)
 
                 #Periodically save the model.
                 if i % 1000 == 0 and i != 0:
                     self.save(sess, i, saver)
-                    print ("Percent of succesful episodes: " + str(sum(rList)/num_episodes) + "%")
+                    print ("Percent of succesful episodes: " + str(sum(rList)/self.max_episodes) + "%")
                 if len(rList) % self.summary_length == 0 and len(rList) != 0:
                     print(total_steps, np.mean(rList[-self.summary_length:]), e)
                     # saveToCenter(i,rList,jList,np.reshape(np.array(episodeBuffer),[len(episodeBuffer),5]),\
                     #    self.summary_length,hidden_size,sess,self.primary_network,time_per_step)
 
             self.save(sess, i, saver)
-        print ("Percent of succesful episodes: " + str(sum(rList)/num_episodes) + "%")
+        print ("Percent of succesful episodes: " + str(sum(rList)/self.max_episodes) + "%")
 
 
 

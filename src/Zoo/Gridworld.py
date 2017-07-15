@@ -1,7 +1,7 @@
 import numpy as np
 import random
 import itertools
-import scipy.misc
+from PIL import Image
 
 import gym
 from gym import error, spaces, utils
@@ -116,10 +116,9 @@ class Gridworld(gym.Env):
 
         if self.partial == True:
             a = a[hero.y:hero.y+3, hero.x:hero.x+3, :]
-
-        b = scipy.misc.imresize(a[:,:,0],[84,84,1],interp='nearest')
-        c = scipy.misc.imresize(a[:,:,1],[84,84,1],interp='nearest')
-        d = scipy.misc.imresize(a[:,:,2],[84,84,1],interp='nearest')
+        b = imresize(a[:,:,0],[84,84,1])
+        c = imresize(a[:,:,1],[84,84,1])
+        d = imresize(a[:,:,2],[84,84,1])
         a = np.stack([b,c,d],axis=2)
         return a
 
@@ -163,3 +162,16 @@ class Gridworld(gym.Env):
             points.remove(pos)
         location = np.random.choice(range(len(points)),replace=False)
         return points[location]
+
+def imresize(arr, size):
+    high=255
+    low=0
+    data = np.asarray(arr)
+    shape = (data.shape[1], data.shape[0])  # columns show up first
+    scale = float(high - low) / (data.max() - data.min())
+    bytedata = (data - data.min()) * scale + low
+    bytedata = (bytedata.clip(low, high) + 0.5).astype(np.uint8)
+    return np.array(
+            Image.frombytes('L', shape, bytedata.tostring())
+                .resize((size[1], size[0]), resample=0))
+
