@@ -51,8 +51,8 @@ library:
     - backprop
     - type-combinators
     - generics-sop
-    - accelerate
-    - accelerate-llvm-native
+    # - accelerate
+    # - accelerate-llvm-native
     - hmatrix
 
 executables:

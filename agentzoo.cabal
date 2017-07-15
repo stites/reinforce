@@ -39,8 +39,6 @@ library
     , backprop
     , type-combinators
     , generics-sop
-    , accelerate
-    , accelerate-llvm-native
     , hmatrix
   exposed-modules:
       QNetwork
