@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import itertools
+from scipy.misc import imresize
 from PIL import Image
 
 import gym
@@ -163,15 +164,15 @@ class Gridworld(gym.Env):
         location = np.random.choice(range(len(points)),replace=False)
         return points[location]
 
-def imresize(arr, size):
-    high=255
-    low=0
-    data = np.asarray(arr)
-    shape = (data.shape[1], data.shape[0])  # columns show up first
-    scale = float(high - low) / (data.max() - data.min())
-    bytedata = (data - data.min()) * scale + low
-    bytedata = (bytedata.clip(low, high) + 0.5).astype(np.uint8)
-    return np.array(
-            Image.frombytes('L', shape, bytedata.tostring())
-                .resize((size[1], size[0]), resample=0))
+#def imresize(arr, size):
+#    high=255
+#    low=0
+#    data = np.asarray(arr)
+#    shape = (data.shape[1], data.shape[0])  # columns show up first
+#    scale = float(high - low) / (data.max() - data.min())
+#    bytedata = (data - data.min()) * scale + low
+#    bytedata = (bytedata.clip(low, high) + 0.5).astype(np.uint8)
+#    return np.array(
+#            Image.frombytes('L', shape, bytedata.tostring())
+#                .resize((size[1], size[0]), resample=0))
 
