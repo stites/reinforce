@@ -8,6 +8,7 @@ import random
 import os
 import csv
 import itertools
+import multiprocessing
 
 from functools import *
 
@@ -63,7 +64,9 @@ __all__ = [
     "flatten_tensor",
     "Writer",
     "EpisodeWriter",
-    "ReportWriter"
+    "ReportWriter",
+
+    "sess_config"
     ]
 
 _p = partial
@@ -255,4 +258,6 @@ class ReportWriter(Writer):
         # episode total rwd
         # episode details:
         # -> action, reward, (forall a Action a=>. advantage(a)), Value, State
- 
+
+cpus = multiprocessing.cpu_count()
+sess_config = tf.ConfigProto(intra_op_parallelism_threads=cpus, inter_op_parallelism_threads=cpus)
