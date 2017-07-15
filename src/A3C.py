@@ -7,48 +7,18 @@ from random import choice
 from time import sleep, time
 
 
-#This code allows gifs to be saved of the training episode for use in the Control Center.
-def make_gif(images, fname, duration=2, true_image=False,salience=False,salIMGS=None):
-  import moviepy.editor as mpy
-
-  def make_frame(t):
-    try:
-      x = images[int(len(images)/duration*t)]
-    except:
-      x = images[-1]
-
-    if true_image:
-      return x.astype(np.uint8)
-    else:
-      return ((x+1)/2*255).astype(np.uint8)
-
-  def make_mask(t):
-    try:
-      x = salIMGS[int(len(salIMGS)/duration*t)]
-    except:
-      x = salIMGS[-1]
-    return x
-
-  clip = mpy.VideoClip(make_frame, duration=duration)
-  if salience == True:
-    mask = mpy.VideoClip(make_mask, ismask=True,duration= duration)
-    clipB = clip.set_mask(mask)
-    clipB = clip.set_opacity(0)
-    mask = mask.set_opacity(0.1)
-    mask.write_gif(fname, fps = len(images) / duration,verbose=False)
-    #clipB.write_gif(fname, fps = len(images) / duration,verbose=False)
-  else:
-    clip.write_gif(fname, fps = len(images) / duration,verbose=False)
-
-# Copies one set of variables to another.
-# Used to set worker network parameters to those of global network.
-def update_target_graph(from_scope,to_scope):
+def update_target_graph(from_scope, to_scope):
+    """
+    Copies one set of variables to another.
+    Used to set worker network parameters to those of global network.
+    """
     from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope)
-    to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope)
+    to_vars   = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope)
 
     op_holder = []
-    for from_var,to_var in zip(from_vars,to_vars):
+    for from_var,to_var in zip(from_vars, to_vars):
         op_holder.append(to_var.assign(from_var))
+
     return op_holder
 
 def process_frame(I):
@@ -66,12 +36,13 @@ def discount(r, gamma):
   discounted_r = np.zeros_like(r)
   running_add = 0
   for t in reversed(range(0, r.size)):
-    if r[t] != 0: running_add = 0
+    if r[t] != 0:
+        running_add = 0
     running_add = running_add * gamma + r[t]
     discounted_r[t] = running_add
   return discounted_r
 
-#Used to initialize weights for policy and value output layers
+# Used to initialize weights for policy and value output layers
 def normalized_columns_initializer(std=1.0):
     def _initializer(shape, dtype=None, partition_info=None):
         out = np.random.randn(*shape).astype(np.float32)
@@ -79,77 +50,109 @@ def normalized_columns_initializer(std=1.0):
         return tf.constant(out)
     return _initializer
 
-class AC_Network():
-    def __init__(self,s_size,a_size,scope,trainer):
-        with tf.variable_scope(scope):
-            #Input and visual encoding layers
-            self.inputs = tf.placeholder(shape=[None,s_size],dtype=tf.float32)
-            self.imageIn = tf.reshape(self.inputs,shape=[-1,80,80,1])
-            self.conv1 = slim.conv2d(activation_fn=tf.nn.elu,
-                inputs=self.imageIn,num_outputs=16,
-                kernel_size=[8,8],stride=[4,4],padding='VALID')
-            self.conv2 = slim.conv2d(activation_fn=tf.nn.elu,
-                inputs=self.conv1,num_outputs=32,
-                kernel_size=[4,4],stride=[2,2],padding='VALID')
-            hidden = slim.fully_connected(slim.flatten(self.conv2),256,activation_fn=tf.nn.elu)
-            
-            #Recurrent network for temporal dependencies
-            lstm_cell = tf.contrib.rnn.BasicLSTMCell(256,state_is_tuple=True)
+class ActorCriticNetwork():
+    class ImageInputNetwork:
+        def __init__(self, state_size, xlen, ylen, chans):
+            input_flat    = tf.placeholder(shape=[None, state_size], dtype=tf.float32)
+            input_resized = tf.reshape(input_flat, shape=[-1, xlen, ylen, chans])
+
+            conv1 = slim.conv2d(
+                activation_fn=tf.nn.elu,
+                inputs=input_resized,
+                num_outputs=16,
+                kernel_size=[8,8],
+                stride=[4,4],
+                padding='VALID')
+
+            conv2 = slim.conv2d(
+                activation_fn=tf.nn.elu,
+                inputs=conv1,
+                num_outputs=32,
+                kernel_size=[4,4],
+                stride=[2,2],
+                padding='VALID')
+
+            hidden = slim.fully_connected(slim.flatten(conv2), 256, activation_fn=tf.nn.elu)
+
+    class RecurrentNetwork:
+        def __init__(self, conv):
+            lstm_cell = tf.contrib.rnn.BasicLSTMCell(256, state_is_tuple=True)
+
             c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
             h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
             self.state_init = [c_init, h_init]
+
             c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c])
             h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h])
             self.state_in = (c_in, h_in)
-            rnn_in = tf.expand_dims(hidden, [0])
+
+            rnn_in    = tf.expand_dims(hidden, [0])
             step_size = tf.shape(self.imageIn)[:1]
-            state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
+            state_in  = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
+
             lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
-                lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
+                lstm_cell,
+                rnn_in,
+                initial_state=state_in,
+                sequence_length=step_size,
                 time_major=False)
+
             lstm_c, lstm_h = lstm_state
+
             self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
-            rnn_out = tf.reshape(lstm_outputs, [-1, 256])
-            
-            #Output layers for policy and value estimations
-            self.policy = slim.fully_connected(rnn_out,a_size,
+            self.output = tf.reshape(lstm_outputs, [-1, 256])
+
+    def __init__(self, s_size, a_size, scope, trainer=None):
+        with tf.variable_scope(scope):
+            conv = self.ImageInputNetwork(state_size, xlen, ylen, chans)
+            rnn = self.RecurrentNetwork(conv)
+
+            self.policy_net_output = slim.fully_connected(
+                rnn.output,
+                a_size,
                 activation_fn=tf.nn.softmax,
                 weights_initializer=normalized_columns_initializer(0.01),
                 biases_initializer=None)
-            self.value = slim.fully_connected(rnn_out,1,
+
+            self.value_net_output = slim.fully_connected(
+                rnn.output,
+                1,
                 activation_fn=None,
                 weights_initializer=normalized_columns_initializer(1.0),
                 biases_initializer=None)
-            
-            #Only the worker network need ops for loss functions and gradient updating.
-            if scope != 'global':
-                self.actions = tf.placeholder(shape=[None],dtype=tf.int32)
-                self.actions_onehot = tf.one_hot(self.actions,a_size,dtype=tf.float32)
-                self.target_v = tf.placeholder(shape=[None],dtype=tf.float32)
-                self.advantages = tf.placeholder(shape=[None],dtype=tf.float32)
 
-                self.responsible_outputs = tf.reduce_sum(self.policy * self.actions_onehot, [1])
+            # Only the worker network need ops for loss functions and gradient updating.
+            if trainer is not None:
+                self.compute_gradients(rnn, action_size, scope, trainer)
 
-                #Loss functions
-                self.value_loss = 0.5 * tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value,[-1])))
-                self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy))
-                self.policy_loss = -tf.reduce_sum(tf.log(self.responsible_outputs)*self.advantages)
-                self.loss = 0.5 * self.value_loss + self.policy_loss - self.entropy * 0.01
+    def compute_gradients(self, rnn, action_size, scope, trainer):
+        actions        = tf.placeholder(shape=[None], dtype=tf.int32)
+        target_v       = tf.placeholder(shape=[None], dtype=tf.float32)
+        advantages     = tf.placeholder(shape=[None], dtype=tf.float32)
+        actions_onehot = tf.one_hot(actions, action_size, dtype=tf.float32)
 
-                #Get gradients from local network using local losses
-                local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
-                self.gradients = tf.gradients(self.loss,local_vars)
-                self.var_norms = tf.global_norm(local_vars)
-                grads,self.grad_norms = tf.clip_by_global_norm(self.gradients,40.0)
-                
-                #Apply local gradients to global network
-                global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-                self.apply_grads = trainer.apply_gradients(zip(grads,global_vars))
+        responsible_outputs = tf.reduce_sum(self.policy_net_output * actions_onehot, [1])
+
+        value_loss  = 0.5 * tf.reduce_sum(tf.square(target_v - tf.reshape(self.value_net_output, [-1])))
+        entropy     = -tf.reduce_sum(self.policy_net_output * tf.log(self.policy_net_output))
+        policy_loss = -tf.reduce_sum(tf.log(responsible_outputs) * advantages)
+        loss        = 0.5 * value_loss + policy_loss - entropy * 0.01
+
+        # Get gradients from local network using local losses
+        local_vars        = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+        gradients         = tf.gradients(loss, local_vars)
+        var_norms         = tf.global_norm(local_vars)
+        grads, grad_norms = tf.clip_by_global_norm(gradients, 40.0)
+
+        # send local gradients to global network
+        global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
+        apply_grads = trainer.apply_gradients(zip(grads, global_vars))
+
 
 class Worker():
-    def __init__(self,game,name,s_size,a_size,trainer,model_path,global_episodes):
+    def __init__(self, game, name, s_size, a_size, trainer, model_path, global_episodes):
         self.name = "worker_" + str(name)
-        self.number = name        
+        self.number = name
         self.model_path = model_path
         self.trainer = trainer
         self.global_episodes = global_episodes
@@ -161,13 +164,13 @@ class Worker():
 
         #Create the local copy of the network and the tensorflow op to copy global paramters to local network
         self.local_AC = AC_Network(s_size,a_size,self.name,trainer)
-        self.update_local_ops = update_target_graph('global',self.name)        
-        
+        self.update_local_ops = update_target_graph('global',self.name)
+
         #The Below code is related to setting up the Doom environment
         self.actions = self.actions = np.identity(a_size,dtype=bool).tolist()
         #End Doom set-up
         self.env = game
-        
+
     def train(self,rollout,sess,gamma,bootstrap_value):
         rollout = np.array(rollout)
         observations = rollout[:,0]
@@ -175,7 +178,7 @@ class Worker():
         rewards = rollout[:,2]
         next_observations = rollout[:,3]
         values = rollout[:,5]
-        
+
         # Here we take the rewards and values from the rollout, and use them to 
         # generate the advantage and discounted returns. 
         # The advantage function uses "Generalized Advantage Estimation"
@@ -202,7 +205,7 @@ class Worker():
             self.local_AC.apply_grads],
             feed_dict=feed_dict)
         return v_l / len(rollout),p_l / len(rollout),e_l / len(rollout), g_n,v_n
-        
+
     def work(self,max_episode_length,gamma,sess,coord,saver):
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
@@ -286,10 +289,6 @@ class Worker():
                     if self.name == 'worker_0' and episode_count % 25 == 0:
                         time_per_step = 0.05
                         images = np.array(episode_frames)
-                        """ REMOVE ME"""
-                        make_gif(images,'./frames/image'+str(episode_count)+'.gif',
-                            duration=len(images)*time_per_step,true_image=True,salience=False)
-                        """ REMOVE ME"""
                     if episode_count % 250 == 0 and self.name == 'worker_0':
                         saver.save(sess,self.model_path+'/model-'+str(episode_count)+'.cptk')
                         print ("Saved Model")
@@ -325,10 +324,6 @@ if __name__ == '__main__':
 
     if not os.path.exists(model_path):
         os.makedirs(model_path)
-
-    # Create a directory to save episode playback gifs to
-    if not os.path.exists('./frames'):
-        os.makedirs('./frames')
 
     with tf.device("/cpu:0"): 
         global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',trainable=False)
