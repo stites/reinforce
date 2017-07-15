@@ -1,7 +1,8 @@
-from Zoo.Prelude       import *
-from Zoo.Gridworld     import Gridworld
-from Zoo.BasicConvoNet import ConvolutionNetwork
-from Zoo.ReplayBuffer  import ReplayBuffer
+from Zoo.Prelude         import *
+from Zoo.Gridworld       import Gridworld
+from Zoo.BasicConvoNet   import ConvolutionNetwork
+from Zoo.ReplayBuffer    import ReplayBuffer
+from ActionSelection     import epsilon_greedy_choice
 
 class DuelingRecurrentNetwork():
     class RecurrentLayer:
@@ -19,7 +20,7 @@ class DuelingRecurrentNetwork():
                     cell=rnn_cell,
                     dtype=tf.float32,
                     initial_state=state_input,
-                    scope=scope+'_rnn'
+                    scope=scope.name+'_rnn'
                     )
 
             self.hidden_size  = hidden_size
@@ -43,10 +44,11 @@ class DuelingRecurrentNetwork():
                     self.batch_size: 1
                 })
 
-    def __init__(self, xlen, ylen, chans, hidden_size, action_size, rnn_cell, scope):
+    def __init__(self, xlen, ylen, chans, hidden_size, action_size, scope):
         cnn          = ConvolutionNetwork(84, 84, 3, hidden_size)
         batch_size   = tf.placeholder(dtype=tf.int32)
         train_length = tf.placeholder(dtype=tf.int32)
+        rnn_cell     = tf.contrib.rnn.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
         rnn          = self.RecurrentLayer(cnn.output, batch_size, train_length, hidden_size, rnn_cell, scope)
 
         # Take the output from the convolutional layer and send it to a recurrent layer.
@@ -59,10 +61,7 @@ class DuelingRecurrentNetwork():
         valueW      = tf.Variable(xavier_init([int(hidden_size / 2), 1]))
 
         value      = tf.matmul(valueStream    , valueW    )
-        # ==============================================================================
         advantage0 = tf.matmul(advantageStream, advantageW)
-        salience   = tf.gradients(advantage0, cnn.imageIn)   # what the hell is this???
-        # ==============================================================================
         advantage  = tf.subtract(advantage0, tf.reduce_mean(advantage0, axis=1, keep_dims=True))
         qOut       = value + advantage
         predict    = tf.argmax(qOut, 1)
@@ -90,6 +89,7 @@ class DuelingRecurrentNetwork():
         self._targetQ     = targetQ
         self._actions     = actions
         self._updateModel = updateModel
+        self.scope        = scope
 
     def update_network(self, sess, train_batch, targetQ, trace_length, state_train, batch_size):
         sess.run(
@@ -151,12 +151,11 @@ class Agent:
 
         tf.reset_default_graph()
 
-        new_lstm   = lambda: tf.contrib.rnn.BasicLSTMCell(num_units=hidden_size, state_is_tuple=True)
+        with tf.variable_scope('primary_network') as scope:
+            self.primary_network = DuelingRecurrentNetwork(84, 84, 3, hidden_size, 4, scope)
 
-        with tf.name_scope('primary_network'):
-            self.primary_network = DuelingRecurrentNetwork(84, 84, 3, hidden_size, 4, new_lstm(), 'main')
-        with tf.name_scope('target_network'):
-            self.target_network  = DuelingRecurrentNetwork(84, 84, 3, hidden_size, 4, new_lstm(), 'target')
+        with tf.variable_scope('target_network') as scope:
+            self.target_network  = DuelingRecurrentNetwork(84, 84, 3, hidden_size, 4, scope)
 
         # Make a path for our model to be saved in.
         if not os.path.exists(path):
@@ -181,6 +180,37 @@ class Agent:
     def in_pretraining(self, step):
         return step < self.pre_train_steps
 
+    def choose(self, sess, eps, step, rnn_state, state, network):
+        def run_action(s):
+            return sess.run(network.predict,
+                feed_dict={
+                    network.scalar_input: [s/255.0],
+                    network.train_length: 1,
+                    network.rnn.state_input: rnn_state,
+                    network.batch_size: 1
+                })
+
+        return np.random.randint(0, self.action_size) if self.in_pretraining(step) else \
+               epsilon_greedy_choice(eps, self.action_size, run_action, state)
+
+    def get_rnnstate(self, sess, rnn_state, s, network):
+        return sess.run(
+            network.rnn.state,
+            feed_dict={
+                network.scalar_input: [s/255.0],
+                network.train_length: 1,
+                network.rnn.state_input: rnn_state,
+                network.batch_size: 1
+            })
+
+    def get_qs(self, sess, network, op, state_train, train_batch):
+        return sess.run(op, feed_dict={
+            network.scalar_input: np.vstack(train_batch[:,3]/255.0),
+            network.rnn.train_length: self.trace_length,
+            network.rnn.state_input: state_train,
+            network.rnn.batch_size: self.batch_size
+        })
+
     def run_learner(self):
         jList = []
         rList = []
@@ -189,15 +219,15 @@ class Agent:
         rw         = ReportWriter()
         init       = tf.global_variables_initializer()
         trainables = tf.trainable_variables()
-        targetOps  = update_target_graph(trainables, self.tau)
         primary    = self.primary_network
         target     = self.target_network
+        targetOps  = update_target_graph(primary.scope, target.scope, tau=self.tau)
         saver      = tf.train.Saver(max_to_keep=5)
 
         with tf.Session() as sess:
             self.load(sess, saver)
             sess.run(init)
-            update_target_net_to_primary_net(targetOps, sess)
+            update_target_graph(primary.scope, target.scope)
 
             for i in range(self.max_episodes):
                 ew = EpisodeWriter()
@@ -212,79 +242,43 @@ class Agent:
 
                 #The Q-Network
                 while j < self.max_steps and not done:
-                    if done:
-                        raise Exception()
-                    j+=1
+                    j += 1
                     total_steps += 1
 
                     e = self.eps(total_steps)
-                    if np.random.rand(1) < e or total_steps < self.pre_train_steps:
-                        state1 = sess.run(primary.rnn.state,
-                                feed_dict={
-                                    primary.scalar_input: [s/255.0],
-                                    primary.train_length: 1,
-                                    primary.rnn.state_input: rnn_state,
-                                    primary.batch_size: 1
-                                })
-                        a = np.random.randint(0,4)
-                    else:
-                        a, state1 = sess.run([
-                                primary.predict,
-                                primary.rnn.state
-                                ],
-                                feed_dict={
-                                    primary.scalar_input: [s/255.0],
-                                    primary.train_length: 1,
-                                    primary.rnn.state_input: rnn_state,
-                                    primary.batch_size: 1
-                                })
-                        a = a[0]
+                    a = self.choose(sess, e, total_steps, rnn_state, s, primary)
+                    state1 = self.get_rnnstate(sess, rnn_state, s, primary)
 
-                    s1P,r,done = self.env.step(a)
+                    s1P, r, done, _ = self.env.step(a)
                     s1 = process_shape(s1P)
                     episodeBuffer.append(np.reshape(np.array([s,a,r,s1,done]),[1,5]))
                     ew.tell(s,a,r,done)
-                    # tellAll( advantages, state_value)
 
-                    if total_steps > self.pre_train_steps:
-                        if total_steps % self.update_freq == 0:
-                            update_target_net_to_primary_net(targetOps, sess)
-                            #Reset the recurrent layer's hidden state
-                            state_train = primary.rnn.reset_state(self.batch_size)
+                    if not self.in_pretraining(total_steps) and (total_steps % self.update_freq == 0):
+                        update_target_graph(primary.scope, target.scope)
 
-                            #Get a random batch of experiences.
-                            train_batch = self.experience.sample_sequence(self.batch_size, self.trace_length)
+                        #Reset the recurrent layer's hidden state
+                        state_train = primary.rnn.reset_state(self.batch_size)
 
-                            #Below we perform the Double-DQN update to the self.target_network Q-values
-                            Q1 = sess.run(
-                                    primary.predict,
-                                    feed_dict={
-                                        primary.scalar_input:np.vstack(train_batch[:,3]/255.0),
-                                        primary.rnn.train_length:self.trace_length,
-                                        primary.rnn.state_input:state_train,
-                                        primary.rnn.batch_size:self.batch_size
-                                    })
-                            Q2 = sess.run(
-                                    target.qOut,
-                                    feed_dict={
-                                        target.scalar_input: np.vstack(train_batch[:,3]/255.0),
-                                        target.rnn.train_length:self.trace_length,
-                                        target.rnn.state_input:state_train,
-                                        target.rnn.batch_size:self.batch_size
-                                    })
+                        #Get a random batch of experiences.
+                        train_batch = self.experience.sample_sequence(self.batch_size, self.trace_length)
 
-                            end_multiplier = -(train_batch[:,4] - 1)
-                            doubleQ = Q2[range(self.batch_size*self.trace_length),Q1]
-                            targetQ = train_batch[:,2] + (self.gamma*doubleQ * end_multiplier)
+                        #Below we perform the Double-DQN update to the self.target_network Q-values
+                        Q1 = self.get_qs(sess, primary, primary.predict, state_train, train_batch)
+                        Q2 = self.get_qs(sess,  target,     target.qOut, state_train, train_batch)
 
-                            #Update the network with our target values.
-                            primary.update_network(
-                                    sess,
-                                    train_batch,
-                                    targetQ,
-                                    self.trace_length,
-                                    state_train,
-                                    self.batch_size)
+                        end_multiplier = -(train_batch[:,4] - 1)
+                        doubleQ = Q2[range(self.batch_size*self.trace_length),Q1]
+                        targetQ = train_batch[:,2] + (self.gamma*doubleQ * end_multiplier)
+
+                        #Update the network with our target values.
+                        primary.update_network(
+                                sess,
+                                train_batch,
+                                targetQ,
+                                self.trace_length,
+                                state_train,
+                                self.batch_size)
                     rAll += r
                     s = s1
                     rnn_state = state1
@@ -299,48 +293,36 @@ class Agent:
                 if i % 1000 == 0 and i != 0:
                     self.save(sess, i, saver)
                     print ("Percent of succesful episodes: " + str(sum(rList)/self.max_episodes) + "%")
+
                 if len(rList) % self.summary_length == 0 and len(rList) != 0:
                     print(total_steps, np.mean(rList[-self.summary_length:]), e)
-                    # saveToCenter(i,rList,jList,np.reshape(np.array(episodeBuffer),[len(episodeBuffer),5]),\
-                    #    self.summary_length,hidden_size,sess,self.primary_network,time_per_step)
 
             self.save(sess, i, saver)
         print ("Percent of succesful episodes: " + str(sum(rList)/self.max_episodes) + "%")
-
 
 
 def process_shape(s):
     """ hard-coded reshape to flatten a games' frames. """
     return np.reshape(s, [84*84*3])
 
+
 # Set the target network to be equal to the self.primary_network network.
-def update_target_graph(tf_vars, tau):
+def update_target_graph(from_scope, to_scope, tau=1.0):
     """
     These functions allows us to update the parameters of our target network
     with those of the self.primary_network network.
     """
-    total_vars      = len(tf_vars)
-    half_total_vars = int(total_vars / 2)
-    op_holder       = []
+    assert tau <= 1.0 and tau > 0.0
 
-    for idx,var in enumerate(tf_vars[0:half_total_vars]):
-        i = idx + half_total_vars
-        q = (tau * var.value()) + ((1 - tau) * tf_vars[i].value())
-        h = tf_vars[i].assign(q)
-        op_holder.append(h)
+    from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope.name)
+    to_vars   = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope.name)
+    updated_q = lambda tvar, fvar: (tau * fvar.value()) + ((1 - tau) * tvar.value())
+    op_holder = []
+
+    for from_var, to_var in zip(from_vars, to_vars):
+        op_holder.append(to_var.assign(updated_q(to_var, from_var)))
 
     return op_holder
-
-
-def update_target_net_to_primary_net(op_holder, sess):
-    for op in op_holder:
-        sess.run(op)
-
-    half_size = int(len(tf.trainable_variables()) / 2)
-    eval_at = lambda i: tf.trainable_variables()[i].eval(session=sess)
-
-    if not eval_at(0).all() == eval_at(half_size).all():
-        raise Exception("Target Set Failed")
 
 
 if __name__ == '__main__':

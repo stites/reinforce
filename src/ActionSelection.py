@@ -28,46 +28,46 @@ def softmax_choice(q_function, state, temp=1):
     action_value = np.random.choice(qs, probs)
     return np.argmax(qs == action_value)
 
-def tf_bayesian_dropout(q_function, inputs, hidden, state, action_selector, keep=0.5):
-    """
-     What if an agent could exploit its own uncertainty about its actions? This
-     is exactly the ability that a class of neural network models referred to as
-     Bayesian Neural Networks (BNNs) provide. Unlike traditional neural network
-     which act deterministically, BNNs act probabilistically. This means that
-     instead of having a single set of fixed weights, a BNN maintains a
-     probability distribution over possible weights. In a reinforcement learning
-     setting, the distribution over weight values allows us to obtain
-     distributions over actions as well. The variance of this distribution
-     provides us an estimate of the agent’s uncertainty about each action.
-
-     In practice however it is impractical to maintain a distribution over all
-     weights. Instead we can utilize dropout to simulate a probabilistic
-     network. Dropout is a technique where network activations are randomly
-     set to zero during the training process in order to act as a regularizer.
-     By repeatedly sampling from a network with dropout, we are able to obtain
-     a measure of uncertainty for each action.
-
-     When taking a single sample from a network with Dropout, we are doing
-     something that approximates sampling from a BNN. For more on the
-     implications of using Dropout for BNNs, I highly recommend Yarin Gal’s
-     Phd thesis on the topic[1].
-
-     [1]: http://mlg.eng.cam.ac.uk/yarin/blog_2248.html
-
-     Shortcomings: In order to get true uncertainty estimates, multiple
-     samples are required, thus increasing computational complexity. In my own
-     experiments however I have found it sufficient to sample only once, and
-     use the noisy estimates provided by the network. In order to reduce the
-     noise in the estimate, the dropout keep probability is simply annealed
-     over time from 0.1 to 1.0.
-     """
-     qOut     = q_function
-     keep_per = tf.placeholder(shape=None, dtype=tf.float32)
-     hidden   = slim.dropout(hidden, keep_per)
-
-
-     qs = sess.run(qOut, feed_dict={inputs:[state], keep_per:keep})
-     action = action_selector(q_function, state, *args)
+#def tf_bayesian_dropout(q_function, inputs, hidden, state, action_selector, keep=0.5):
+#    """
+#     What if an agent could exploit its own uncertainty about its actions? This
+#     is exactly the ability that a class of neural network models referred to as
+#     Bayesian Neural Networks (BNNs) provide. Unlike traditional neural network
+#     which act deterministically, BNNs act probabilistically. This means that
+#     instead of having a single set of fixed weights, a BNN maintains a
+#     probability distribution over possible weights. In a reinforcement learning
+#     setting, the distribution over weight values allows us to obtain
+#     distributions over actions as well. The variance of this distribution
+#     provides us an estimate of the agent’s uncertainty about each action.
+#
+#     In practice however it is impractical to maintain a distribution over all
+#     weights. Instead we can utilize dropout to simulate a probabilistic
+#     network. Dropout is a technique where network activations are randomly
+#     set to zero during the training process in order to act as a regularizer.
+#     By repeatedly sampling from a network with dropout, we are able to obtain
+#     a measure of uncertainty for each action.
+#
+#     When taking a single sample from a network with Dropout, we are doing
+#     something that approximates sampling from a BNN. For more on the
+#     implications of using Dropout for BNNs, I highly recommend Yarin Gal’s
+#     Phd thesis on the topic[1].
+#
+#     [1]: http://mlg.eng.cam.ac.uk/yarin/blog_2248.html
+#
+#     Shortcomings: In order to get true uncertainty estimates, multiple
+#     samples are required, thus increasing computational complexity. In my own
+#     experiments however I have found it sufficient to sample only once, and
+#     use the noisy estimates provided by the network. In order to reduce the
+#     noise in the estimate, the dropout keep probability is simply annealed
+#     over time from 0.1 to 1.0.
+#     """
+#     qOut     = q_function
+#     keep_per = tf.placeholder(shape=None, dtype=tf.float32)
+#     hidden   = slim.dropout(hidden, keep_per)
+#
+#
+#     qs = sess.run(qOut, feed_dict={inputs:[state], keep_per:keep})
+#     action = action_selector(q_function, state, *args)
 
 """
 All of the methods discussed above deal with the selection of actions. There
