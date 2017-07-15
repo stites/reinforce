@@ -149,4 +149,8 @@ __pycache__
 
 #============ CUSTOM ============#
 dqn
+drqn
 Center
+train_*
+src/frames
+src/test
