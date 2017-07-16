@@ -150,6 +150,7 @@ __pycache__
 #============ CUSTOM ============#
 dqn
 drqn
+model
 Center
 train_*
 src/frames
