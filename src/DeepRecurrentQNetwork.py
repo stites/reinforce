@@ -2,6 +2,7 @@ from Zoo.Prelude         import *
 from Zoo.Gridworld       import Gridworld
 from Zoo.BasicConvoNet   import ConvolutionNetwork
 from Zoo.ReplayBuffer    import ReplayBuffer
+from Zoo.TensorOps       import update_target_graph
 from ActionSelection     import epsilon_greedy_choice
 
 class DuelingRecurrentNetwork():
@@ -304,26 +305,6 @@ class Agent:
 def process_shape(s):
     """ hard-coded reshape to flatten a games' frames. """
     return np.reshape(s, [84*84*3])
-
-
-# Set the target network to be equal to the self.primary_network network.
-def update_target_graph(from_scope, to_scope, tau=1.0):
-    """
-    These functions allows us to update the parameters of our target network
-    with those of the self.primary_network network.
-    """
-    assert tau <= 1.0 and tau > 0.0
-
-    from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope.name)
-    to_vars   = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope.name)
-    updated_q = lambda tvar, fvar: (tau * fvar.value()) + ((1 - tau) * tvar.value())
-    op_holder = []
-
-    for from_var, to_var in zip(from_vars, to_vars):
-        op_holder.append(to_var.assign(updated_q(to_var, from_var)))
-
-    return op_holder
-
 
 if __name__ == '__main__':
     agent = Agent(env=Gridworld(partial=False,sizeX=9))
