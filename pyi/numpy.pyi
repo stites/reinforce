@@ -1,0 +1,6 @@
+from typing import Any
+
+class array(object):
+  def __init__(self, a:Any, b:Any=None, c:Any=None)->None: ...
+
+def reshape(a:Any, b:Any=None, c:Any=None, d:Any=None)->array: ...
