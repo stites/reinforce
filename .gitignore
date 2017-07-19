@@ -153,5 +153,7 @@ drqn
 model
 Center
 train_*
-src/frames
+frames
 src/test
+.mypy_cache
+results
