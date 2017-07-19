@@ -122,6 +122,12 @@ def last(ls):
 def init(ls):
     return ls[:-1]
 
+def identity1(x):
+    return x
+
+def identityArgs(*args):
+    return args
+
 _0 = lambda t: t[0]
 _1 = lambda t: t[1]
 _2 = lambda t: t[2]
@@ -271,5 +277,6 @@ class ReportWriter(Writer):
 
 cpus = multiprocessing.cpu_count()
 sess_config = tf.ConfigProto(intra_op_parallelism_threads=cpus, inter_op_parallelism_threads=cpus)
+
 
 

@@ -4,7 +4,9 @@ from collections import deque
 import warnings
 import functools
 
-def deprecated(func):
+__all__ = ["ReplayBuffer"]
+
+def depreciated(func):
     @functools.wraps(func)
     def new_func(*args, **kwargs):
         msg = "Call to deprecated function {}.".format(func.__name__)
@@ -16,7 +18,7 @@ def deprecated(func):
     return new_func
 
 class ReplayBuffer:
-    def __init__(self, buffer_size:int=50000):
+    def __init__(self, buffer_size:int=50000)->None:
         self.buffer:Deque[Any] = deque()
         self.buffer_size:int = buffer_size
         self.count:int = 0
@@ -40,7 +42,7 @@ class ReplayBuffer:
     def _resize(self, item_size:int)->None:
         """ okay, get rid of num_extras and just use count+while """
         if self.count + item_size >= self.buffer_size:
-            num_extras = lqueue + item_size - self.buffer_size
+            num_extras = self.count + item_size - self.buffer_size
             while num_extras > 0:
                 self.buffer.popleft()
                 num_extras -= 1
