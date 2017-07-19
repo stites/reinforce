@@ -1,4 +1,6 @@
 from Zoo.Prelude import *
+from collections import deque
+
 import warnings
 import functools
 
@@ -14,33 +16,35 @@ def deprecated(func):
     return new_func
 
 class ReplayBuffer:
-    def __init__(self, buffer_size=50000):
-        self.buffer = []
-        self.buffer_size = buffer_size
+    def __init__(self, buffer_size:int=50000):
+        self.buffer:Deque[Any] = deque()
+        self.buffer_size:int = buffer_size
+        self.count:int = 0
 
-    @property
-    def size(self):
-        return len(self.buffer)
+    def clear(self)->None:
+        self.buffer.clear()
+        self.count = 0
 
-    def clear(self):
-        self.buffer = []
-
-    def add_step(self, s, a, r, s1, done):
+    def add_step(self, s, a, r, s1, done)->None:
         self._resize(1)
         self.append(np.reshape(np.array([s,a,r,s1,done]),[1,5]))
 
-    def append(self, experience):
+    def append(self, experience)->None:
         self._resize(len(experience))
-        self.buffer.extend(experience)
+        self.buffer.append(experience)
 
-    def add_episode(self, episode):
+    def add_episode(self, episode)->None:
         self._resize(1)
         self.buffer.append(episode)
 
-    def _resize(self, item_size):
-        lqueue = len(self.buffer)
-        if lqueue + item_size >= self.buffer_size:
-            self.buffer[0:(lqueue + item_size - self.buffer_size)] = []
+    def _resize(self, item_size:int)->None:
+        """ okay, get rid of num_extras and just use count+while """
+        if self.count + item_size >= self.buffer_size:
+            num_extras = lqueue + item_size - self.buffer_size
+            while num_extras > 0:
+                self.buffer.popleft()
+                num_extras -= 1
+                self.count -= 1
 
     def sample_sequence(self, size, trace_length):
         sampled_episodes = random.sample(self.buffer, size)
