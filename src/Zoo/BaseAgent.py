@@ -1,10 +1,12 @@
 from Zoo.Prelude import *
 
 class BaseAgent(object):
-    def __init__(self, load_model, pretrain_steps, path):
+    """ basic helper functions which should live on an agent """
+    def __init__(self, load_model, pretrain_steps, path, env):
         self.load_model = load_model
-        self.pretrain_steps = pretrain_steps
+        self.pretrain_steps = 1 if pretrain_steps == None else pretrain_steps
         self.path = path
+        self.env = env
 
     def process_state(self, states):
         return states
@@ -21,6 +23,12 @@ class BaseAgent(object):
         print("Saved Model")
 
     def finished_pretrain(self, step):
-        return not (self.pretrain_steps == None) or steps > self.pretrain_steps
+        return steps > self.pretrain_steps
 
+    def step(self, action:int)->Tuple[Any, float, bool, Any]:
+         state, rwd, done, info = self.env.step(action)
+         return self.process_state(state), float(rwd), bool(done), info
+
+    def reset(self)->Any:
+         return self.process_state(self.env.reset())
 

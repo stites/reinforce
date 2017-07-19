@@ -27,7 +27,7 @@ class ReplayBuffer:
         self.buffer.clear()
         self.count = 0
 
-    def add_step(self, s, a, r, s1, done)->None:
+    def add_step(self, s:Any, a:int, r:float, s1:Any, done:bool)->None:
         self._resize(1)
         self.append(np.reshape(np.array([s,a,r,s1,done]),[1,5]))
 
@@ -66,7 +66,7 @@ class ReplayBuffer:
         batch_size = self.size if self.size < requested_size else requested_size
         return np.reshape(np.array(random.sample(self.buffer, batch_size)), [batch_size, 5])
 
-    def sample_batch_split(self, requested_size):
+    def sample_batch_split(self, requested_size:int)->Tuple[Any, Any, Any, Any, Any]:
         batch    = self.sample_batch(requested_size)
 
         s_batch  = batch[:,0]

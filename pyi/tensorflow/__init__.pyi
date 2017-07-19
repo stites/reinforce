@@ -12,6 +12,7 @@ truncated_normal_initializer: Any
 float32: Any
 
 random_uniform_initializer: Any
+named_scope: Any
 
 placeholder: Any
 
