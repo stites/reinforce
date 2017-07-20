@@ -134,6 +134,7 @@ _2 = lambda t: t[2]
 _3 = lambda t: t[3]
 _4 = lambda t: t[4]
 
+
 def choose_action(dist, probs):
     return np.argmax(dist == np.random.choice(probs, p=probs))
 
@@ -145,6 +146,16 @@ def zipWith(fn, _as, _bs):
 
 def curry(fn):
     return (lambda a: fn(a[0], a[1]))
+
+def lambda2(fn):
+    return (lambda a: fn(a[0], a[1]))
+
+def lambda3(fn):
+    return (lambda a: fn(a[0], a[1], a[2]))
+
+def lambda4(fn):
+    return (lambda a: fn(a[0], a[1], a[2], a[4]))
+
 
 def truncate(f):
     #assert type(f) == float, "truncate is for float only"

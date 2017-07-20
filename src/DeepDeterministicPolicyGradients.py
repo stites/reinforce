@@ -131,10 +131,11 @@ class Agent(BaseAgent):
 
         self.behaviour_policy = ActorNetwork(ssize, asize, aboundary, actor_lr, is_main=True)
         self.target_policy    = ActorNetwork(ssize, asize, aboundary, actor_lr, is_main=False)
+        self.sync_target_policy_op = update_target_graph(self.behaviour_policy.scope, self.target_policy.scope, self.tau)
 
         self.stable_value_function = CriticNetwork(ssize, asize, critic_lr, is_main=True)
         self.online_value_function = CriticNetwork(ssize, asize, critic_lr, is_main=False)
-
+        self.sync_target_value_op = update_target_graph(self.stable_value_function.scope, self.online_value_function.scope, self.tau)
 
     def predict_behaviour_policy(self, sess, states)->Any:
         policy = self.behaviour_policy
@@ -156,9 +157,7 @@ class Agent(BaseAgent):
         })
 
     def sync_target_policy(self, sess)->Any:
-        from_network = self.behaviour_policy.scope
-        to_network   = self.target_policy.scope
-        sess.run(update_target_graph(from_network, to_network, self.tau))
+        sess.run(self.sync_target_policy_op)
 
     def predict_online_value(self, sess, states)->Any:
         value = self.online_value_function
@@ -183,65 +182,59 @@ class Agent(BaseAgent):
         })
 
     def sync_online_value_function(self, sess)->None:
-        from_network = self.stable_value_function.scope
-        to_network   = self.online_value_function.scope
-        sess.run(update_target_graph(from_network, to_network, self.tau))
+        sess.run(self.sync_target_value_op)
 
     def process_state(self, state):
         return np.reshape(state, (1, self.ssize))
 
     def run_learner(self, buffer_size=1000000, batch_size=64, max_episodes=50000, max_steps=1000):
         saver = tf.train.Saver()
-        gamma = self.gamma
-        experience:ReplayBuffer = ReplayBuffer(buffer_size)
+        experience    = ReplayBuffer(buffer_size)
         primary_actor = self.behaviour_policy
         target_actor  = self.target_policy
         online_critic = self.online_value_function
         stable_critic = self.stable_value_function
-        env_step  = self.step
-        env_reset = self.reset
-
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-
-            """ """
-            summary_ops    = tf.summary.merge_all()
-            summary_writer = tf.summary.FileWriter("./.tensorboard/"+"w0/", sess.graph)
-            """ """
+            writer = tf.summary.FileWriter('./.tensorboard/w1', sess.graph)
 
             self.load(sess, saver)
             self.sync_target_policy(sess)
             self.sync_online_value_function(sess)
 
+
+            total_steps = 0
             for ep_num in range(max_episodes):
-                state    = env_reset()
+                state    = self.reset()
                 done     = False
                 step_num = 0
 
-                """ """
                 _epRwds  = 0.
-                """ """
-
+                _epMaxQs = 0.
                 while step_num < max_steps and not done:
                     step_num += 1
+                    total_steps += 1
+
                     ornstien_uhlenbeck_momentum_noise = 1. / (1. + ep_num)  # from ddpg paper
-                    action = self.predict_behaviour_policy(sess, state) + ornstien_uhlenbeck_momentum_noise
-                    next_state, reward, done, _ = env_step(action)
+                    action = self.predict_behaviour_policy(sess, state)[0] + ornstien_uhlenbeck_momentum_noise
+                    next_state, reward, done, _ = self.step(action)
                     experience.add_step(state, action, reward, next_state, done)
+                    state = next_state
 
                     _epRwds += float(reward)
 
-                    if self.finished_pretrain(step_num) and step_num % batch_size == 0:
-                        ss, rs, _as, _, ds = experience.sample_batch_split(batch_size)
+                    if self.finished_pretrain(total_steps):
+                        ss, _as, rs, s_nexts, ds = experience.sample_batch_split(batch_size)
+                        target_qs = self.predict_online_value(sess, s_nexts)
 
-                        target_qs = self.predict_online_value(sess, ss)
-                        td_error = []
-                        for exp_d, exp_r, target_q in zip(ds, rs, target_qs):
-                            # doesn't seem like td-error
-                            td_error.append(exp_r + (0 if exp_d else gamma * target_q))
+                        def discount(is_terminal, reward, target):
+                            return reward + (0 if is_terminal else self.gamma * target)
+
+                        td_error = lmap(lambda3(discount), zip(ds, rs, target_qs))
 
                         predicted_qs, _  = self.train_stable_value(sess, ss, _as, td_error)
+                        _epMaxQs        += np.amax(predicted_qs)
                         action_policies  = self.predict_behaviour_policy(sess, ss)
                         action_gradients = self.stable_value_gradients(sess, ss, action_policies)[0]
                         self.train_behaviour_policy(sess, ss, action_gradients)
@@ -251,11 +244,14 @@ class Agent(BaseAgent):
 
 
                     if done:
+                        averageQMax = _epMaxQs / float(step_num)
                         summary = tf.Summary()
                         summary.value.add(tag='Episode/Reward', simple_value=_epRwds)
-                        summary_writer.add_summary(summary, ep_num)
-                        summary_writer.flush()
+                        summary.value.add(tag='Episode/Average_QMax', simple_value=averageQMax)
+                        writer.add_summary(summary, ep_num)
+                        writer.flush()
 
+                        print('| Reward: %.2i' % int(_epRwds), " | Episode", ep_num, '| Qmax: %.4f' % averageQMax)
 
 
 if __name__ == '__main__':
@@ -273,9 +269,7 @@ if __name__ == '__main__':
         tau=0.001,
         env=env,
         load_model=False,
+        gamma=0.99,
         pretrain_steps=64) \
-    .run_learner()
-
-
-
+     .run_learner(buffer_size=1000000, batch_size=64, max_episodes=50000, max_steps=1000)
 
