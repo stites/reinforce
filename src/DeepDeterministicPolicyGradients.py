@@ -201,8 +201,15 @@ class Agent(BaseAgent):
         env_step  = self.step
         env_reset = self.reset
 
+
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
+
+            """ """
+            summary_ops    = tf.summary.merge_all()
+            summary_writer = tf.summary.FileWriter("./.tensorboard/"+"w0/", sess.graph)
+            """ """
+
             self.load(sess, saver)
             self.sync_target_policy(sess)
             self.sync_online_value_function(sess)
@@ -210,17 +217,23 @@ class Agent(BaseAgent):
             for ep_num in range(max_episodes):
                 state    = env_reset()
                 done     = False
-                rAll     = 0
                 step_num = 0
+
+                """ """
+                _epRwds  = 0.
+                """ """
+
                 while step_num < max_steps and not done:
                     step_num += 1
                     ornstien_uhlenbeck_momentum_noise = 1. / (1. + ep_num)  # from ddpg paper
                     action = self.predict_behaviour_policy(sess, state) + ornstien_uhlenbeck_momentum_noise
                     next_state, reward, done, _ = env_step(action)
                     experience.add_step(state, action, reward, next_state, done)
+
+                    _epRwds += float(reward)
+
                     if self.finished_pretrain(step_num) and step_num % batch_size == 0:
                         ss, rs, _as, _, ds = experience.sample_batch_split(batch_size)
-                        #print(ss)
 
                         target_qs = self.predict_online_value(sess, ss)
                         td_error = []
@@ -235,6 +248,13 @@ class Agent(BaseAgent):
 
                         self.sync_target_policy(sess)
                         self.sync_online_value_function(sess)
+
+
+                    if done:
+                        summary = tf.Summary()
+                        summary.value.add(tag='Episode/Reward', simple_value=_epRwds)
+                        summary_writer.add_summary(summary, ep_num)
+                        summary_writer.flush()
 
 
 

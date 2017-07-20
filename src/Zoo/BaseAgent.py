@@ -7,6 +7,7 @@ class BaseAgent(object):
         self.pretrain_steps = 1 if pretrain_steps == None else pretrain_steps
         self.path = path
         self.env = env
+        self.summary_writer = tf.summary.FileWriter("./.tensorboard/"+"w0/")
 
     def process_state(self, states):
         return states
@@ -31,4 +32,20 @@ class BaseAgent(object):
 
     def reset(self)->Any:
          return self.process_state(self.env.reset())
+
+    def tb_report(self, episode_rewards, episode_lengths, episode_mean_values, episode_count):
+        summary = tf.Summary()
+
+        summary.value.add(tag='Episode/Reward', simple_value=float(np.mean(episode_rewards[-5:])))
+        summary.value.add(tag='Episode/Length', simple_value=float(np.mean(episode_lengths[-5:])))
+        summary.value.add(tag='Episode/Value', simple_value=float(np.mean(episode_mean_values[-5:])))
+
+        #summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
+        #summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
+        #summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
+        #summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
+        #summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
+
+        self.summary_writer.add_summary(summary, episode_count)
+        self.summary_writer.flush()
 
