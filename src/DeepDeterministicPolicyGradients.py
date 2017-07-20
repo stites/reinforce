@@ -89,6 +89,11 @@ class ActorNetwork(object):
         trainer         = tf.train.AdamOptimizer(learning_rate)
         return trainer.apply_gradients(zip(gradients, network_params)), train_gradient
 
+    def predict(self, sess, states):
+        return sess.run(self.outputs_scaled, feed_dict={
+            self.inputs: states
+        })
+
 class CriticNetwork(object):
     """ build out a compatible function approximator """
     def __init__(self, state_space, action_space, learning_rate, is_main=False):
@@ -118,6 +123,13 @@ class CriticNetwork(object):
         trainer      = tf.train.AdamOptimizer(learning_rate)
         return trainer.minimize(loss), predicted_qs
 
+    def predict(self, sess, states, actions):
+        return sess.run(self.outputs, feed_dict={
+            self.states_input: states,
+            self.actions_input: actions
+        })
+
+
 
 class Agent(BaseAgent):
     """Actor-Critic agent"""
@@ -137,33 +149,11 @@ class Agent(BaseAgent):
         self.online_value_function = CriticNetwork(ssize, asize, critic_lr, is_main=False)
         self.sync_target_value_op = update_target_graph(self.stable_value_function.scope, self.online_value_function.scope, self.tau)
 
-    def predict_behaviour_policy(self, sess, states)->Any:
-        policy = self.behaviour_policy
-        return sess.run(policy.outputs_scaled, feed_dict={
-            policy.inputs: states
-        })
-
     def train_behaviour_policy(self, sess, states, critic_action_gradients)->None:
         policy = self.behaviour_policy
         sess.run(policy.optimize_op, feed_dict={
             policy.inputs: states,
             policy.action_gradient: critic_action_gradients
-        })
-
-    def predict_target_policy(self, sess, states)->Any:
-        policy = self.target_policy
-        return sess.run(policy.outputs_scaled, feed_dict={
-            policy.inputs: states
-        })
-
-    def sync_target_policy(self, sess)->Any:
-        sess.run(self.sync_target_policy_op)
-
-    def predict_online_value(self, sess, states)->Any:
-        value = self.online_value_function
-        return sess.run(value.outputs, feed_dict={
-            value.states_input: states,
-            value.actions_input: self.predict_target_policy(sess, states)
         })
 
     def train_stable_value(self, sess, states, actions, est_values)->Tuple[Any, Any]:
@@ -174,34 +164,31 @@ class Agent(BaseAgent):
             value.predicted_qs: est_values
         })
 
-    def stable_value_gradients(self, sess, states, actions)->Any:
+    def stable_action_gradients(self, sess, states, actions)->Any:
         value = self.stable_value_function
         return sess.run(value.action_gradients, feed_dict={
             value.states_input: states,
             value.actions_input: actions
         })
 
-    def sync_online_value_function(self, sess)->None:
-        sess.run(self.sync_target_value_op)
-
     def process_state(self, state):
         return np.reshape(state, (1, self.ssize))
 
     def run_learner(self, buffer_size=1000000, batch_size=64, max_episodes=50000, max_steps=1000):
         saver = tf.train.Saver()
-        experience    = ReplayBuffer(buffer_size)
-        primary_actor = self.behaviour_policy
-        target_actor  = self.target_policy
-        online_critic = self.online_value_function
-        stable_critic = self.stable_value_function
+        experience       = ReplayBuffer(buffer_size)
+        behaviour_policy = self.behaviour_policy
+        target_policy    = self.target_policy
+        online_critic    = self.online_value_function
+        stable_critic    = self.stable_value_function
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             writer = tf.summary.FileWriter('./.tensorboard/w1', sess.graph)
 
             self.load(sess, saver)
-            self.sync_target_policy(sess)
-            self.sync_online_value_function(sess)
+            sess.run(self.sync_target_policy_op)
+            sess.run(self.sync_target_value_op)
 
 
             total_steps = 0
@@ -217,7 +204,7 @@ class Agent(BaseAgent):
                     total_steps += 1
 
                     ornstien_uhlenbeck_momentum_noise = 1. / (1. + ep_num)  # from ddpg paper
-                    action = self.predict_behaviour_policy(sess, state)[0] + ornstien_uhlenbeck_momentum_noise
+                    action = behaviour_policy.predict(sess, state)[0] + ornstien_uhlenbeck_momentum_noise
                     next_state, reward, done, _ = self.step(action)
                     experience.add_step(state, action, reward, next_state, done)
                     state = next_state
@@ -226,7 +213,7 @@ class Agent(BaseAgent):
 
                     if self.finished_pretrain(total_steps):
                         ss, _as, rs, s_nexts, ds = experience.sample_batch_split(batch_size)
-                        target_qs = self.predict_online_value(sess, s_nexts)
+                        target_qs = online_critic.predict(sess, s_nexts, target_policy.predict(sess, s_nexts))
 
                         def discount(is_terminal, reward, target):
                             return reward + (0 if is_terminal else self.gamma * target)
@@ -235,12 +222,12 @@ class Agent(BaseAgent):
 
                         predicted_qs, _  = self.train_stable_value(sess, ss, _as, td_error)
                         _epMaxQs        += np.amax(predicted_qs)
-                        action_policies  = self.predict_behaviour_policy(sess, ss)
-                        action_gradients = self.stable_value_gradients(sess, ss, action_policies)[0]
+                        action_policies  = behaviour_policy.predict(sess, ss)
+                        action_gradients = self.stable_action_gradients(sess, ss, action_policies)[0]
                         self.train_behaviour_policy(sess, ss, action_gradients)
 
-                        self.sync_target_policy(sess)
-                        self.sync_online_value_function(sess)
+                        sess.run(self.sync_target_policy_op)
+                        sess.run(self.sync_target_value_op)
 
 
                     if done:
