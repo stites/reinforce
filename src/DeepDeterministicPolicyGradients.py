@@ -192,6 +192,8 @@ class Agent(BaseAgent):
 
 
             total_steps = 0
+            _all_rewards = []
+
             for ep_num in range(max_episodes):
                 state    = self.reset()
                 done     = False
@@ -231,10 +233,14 @@ class Agent(BaseAgent):
 
 
                     if done:
+                        _all_rewards.append(_epRwds)
+                        last100 = _all_rewards[-100:]
                         averageQMax = _epMaxQs / float(step_num)
                         summary = tf.Summary()
                         summary.value.add(tag='Episode/Reward', simple_value=_epRwds)
                         summary.value.add(tag='Episode/Average_QMax', simple_value=averageQMax)
+                        summary.value.add(tag='Episodes/Rolling100Reward', simple_value=sum(last100)/float(len(last100)))
+                        summary.value.add(tag='Episodes/Length', simple_value=step_num)
                         writer.add_summary(summary, ep_num)
                         writer.flush()
 
@@ -256,7 +262,7 @@ if __name__ == '__main__':
         tau=0.001,
         env=env,
         load_model=False,
-        gamma=0.99,
+        gamma=0.9,
         pretrain_steps=64) \
      .run_learner(buffer_size=1000000, batch_size=64, max_episodes=50000, max_steps=1000)
 

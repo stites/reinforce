@@ -7,7 +7,6 @@ class BaseAgent(object):
         self.pretrain_steps = 1 if pretrain_steps == None else pretrain_steps
         self.path = path
         self.env = env
-        self.summary_writer = tf.summary.FileWriter("./.tensorboard/"+"w0/")
 
     def process_state(self, states):
         return states
