@@ -27,15 +27,19 @@ class ReplayBuffer:
         self.buffer.clear()
         self.count = 0
 
+    def append(self, experience)->None:
+        """ this is the main function which increments the counter """
+        self._resize(len(experience))
+        self.buffer.append(experience)
+        self.count += len(experience)
+
     def add_step(self, s:Any, a:int, r:float, s1:Any, done:bool)->None:
+        """ alias to append """
         self._resize(1)
         self.append(np.reshape(np.array([s,a,r,s1,done]),[1,5]))
 
-    def append(self, experience)->None:
-        self._resize(len(experience))
-        self.buffer.append(experience)
-
     def add_episode(self, episode)->None:
+        """ alias to append """
         self._resize(1)
         self.buffer.append(episode)
 
@@ -49,6 +53,7 @@ class ReplayBuffer:
                 self.count -= 1
 
     def sample_sequence(self, size, trace_length):
+        """ sample traces """
         sampled_episodes = random.sample(self.buffer, size)
         sampledTraces = []
 
@@ -58,22 +63,32 @@ class ReplayBuffer:
 
         return np.reshape(np.array(sampledTraces),[size*trace_length, 5])
 
-    @depreciated
-    def sample(self, requested_size):
-        return self.sample_batch(requested_size)
-
     def sample_batch(self, requested_size):
-        batch_size = self.size if self.size < requested_size else requested_size
+        """ sample batches """
+        batch_size = self.count if self.count < requested_size else requested_size
         return np.reshape(np.array(random.sample(self.buffer, batch_size)), [batch_size, 5])
 
-    def sample_batch_split(self, requested_size:int)->Tuple[Any, Any, Any, Any, Any]:
-        batch    = self.sample_batch(requested_size)
+    @depreciated
+    def sample(self, requested_size):
+        """ alias to sample_batches """
+        return self.sample_batch(requested_size)
 
-        s_batch  = batch[:,0]
-        a_batch  = batch[:,1]
-        r_batch  = batch[:,2]
-        s1_batch = batch[:,3]
-        d_batch  = batch[:,4]
+    def sample_batch_split(self, requested_size:int)->Tuple[Any, Any, Any, Any, Any]:
+        """ alias to sample_batches but splits output """
+        batch      = self.sample_batch(requested_size)
+        batch_size = batch.shape[0]
+
+        def reshape(split):
+            is_stacked   = type(split[0]) is np.ndarray
+            series_shape = [batch_size, 1]
+            return np.vstack(split) if is_stacked else np.reshape(split, series_shape)
+
+        s_batch  = reshape(batch[:,0])
+        a_batch  = reshape(batch[:,1])
+        r_batch  = reshape(batch[:,2])
+        s1_batch = reshape(batch[:,3])
+        d_batch  = reshape(batch[:,4])
+
 
         return s_batch, a_batch, r_batch, s1_batch, d_batch
 

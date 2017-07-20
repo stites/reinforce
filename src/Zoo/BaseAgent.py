@@ -23,7 +23,7 @@ class BaseAgent(object):
         print("Saved Model")
 
     def finished_pretrain(self, step):
-        return steps > self.pretrain_steps
+        return step > self.pretrain_steps
 
     def step(self, action:int)->Tuple[Any, float, bool, Any]:
          state, rwd, done, info = self.env.step(action)

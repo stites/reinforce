@@ -1,8 +1,12 @@
 from typing import *
 
 class ConfigProto(Any): ...
-class Variable(Any): ...
+
+class Variable(Any):
+  def __init__(a:Any, dtype:Any=None)->None:...
+
 class Tensor(Any): ...
+class GraphKeys(Any): ...
 
 class nn(Any):
   def relu (a:Any)->Tensor: ...
@@ -15,6 +19,10 @@ random_uniform_initializer: Any
 named_scope: Any
 
 placeholder: Any
+
+get_collection: Any
+
+name_scope: Any
 
 reshape: Any
 
