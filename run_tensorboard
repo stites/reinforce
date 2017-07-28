@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+PREFIX="./train"
+NUM_WORKERS=8
+LOG_DIRS=""
+CUR_WORKER=0
+while [[ "$CUR_WORKER" -lt "$NUM_WORKERS" ]] ; do
+  LOG_DIRS="$LOG_DIRS,worker_$CUR_WORKER:\"${PREFIX}_$CUR_WORKER\""
+  CUR_WORKER=$(( $CUR_WORKER + 1 ))
+done
+LOG_DIRS=$(echo $LOG_DIRS | sed -E 's/^,//')
+
+#pyenv activate rl
+tensorboard --logdir=$LOG_DIRS
