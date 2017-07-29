@@ -13,6 +13,8 @@ module Zoo.Prelude
   , oneHot
   , getState
   , putState
+  , ci
+  , cf
   ) where
 
 import Prelude                       as X hiding (id)
@@ -76,6 +78,12 @@ identity = P.id
 
 asFloats :: Functor f => f Int -> f Float
 asFloats = fmap fromIntegral
+
+ci :: (Num i0, Integral i) => i -> i0
+ci = fromIntegral
+
+cf :: (Fractional i0, Real i) => i -> i0
+cf = realToFrac
 
 liftTF :: (MonadTrans t0, MonadTrans t1, Monad (t1 Session)) => Session a -> (t0 (t1 Session)) a
 liftTF = lift . lift

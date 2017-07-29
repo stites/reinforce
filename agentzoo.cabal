@@ -43,8 +43,10 @@ library
   exposed-modules:
       QNetwork
       QNetworkBackprop
+      REINFORCE
       Zoo.Gridworld
       Zoo.Prelude
+      Zoo.Tensorflow
   default-language: Haskell2010
 
 executable report-server
