@@ -37,6 +37,13 @@ getOutputs :: Network -> Tensor Build Float
 getOutputs = layer_outputs . output
 
 
+getWeights :: Network -> [Tensor Ref Float]
+getWeights net = [i, o]
+  where
+    i = layer_weights $ initial net
+    o = layer_weights $ output net
+
+
 mkInputLayer
   :: Int64
   -> Int64

@@ -61,8 +61,51 @@ mkAgentGraph action_size state_size hidden_size = do
     , nextQs  = nextQs
     }
 
-infer = undefined
-train = undefined
+
+infer :: (Enum a, StateSpace s) => ReaderT GraphRefs Build (s -> Session (a, Vector Float))
+infer = do
+  GraphRefs{network, predict} <- ask
+  let
+    inputs = getInputs network
+    qOut   = getOutputs network
+    (_, state_size, _)  = shape network
+    encodeState = encodeState' state_size
+  return $ \st -> do
+    a  <- decodeAction <$> TF.runWithFeeds [TF.feed inputs (encodeState st)] predict
+    qs <-                  TF.runWithFeeds [TF.feed inputs (encodeState st)] qOut
+    pure (a, qs)
+
+
+train :: ReaderT GraphRefs Build (TensorData Float -> TensorData Float -> Session ())
+train = do
+  GraphRefs{network, nextQs} <- ask
+  let
+    inputs = getInputs network
+    qOut = getOutputs network
+    loss :: Tensor Build Float
+    loss = TF.reduceSum $ TF.square (nextQs `TF.sub` qOut)
+
+    weights :: [Tensor Ref Float]
+    weights = getWeights network
+
+  grads     <- lift $ TF.gradients     loss weights
+  trainStep <- lift $ applyGradients weights  grads
+
+  return $ \inFeed rwdFeed -> do
+    TF.runWithFeeds_
+      [ TF.feed inputs inFeed
+      , TF.feed nextQs rwdFeed
+      ] trainStep
+
+  where
+    applyGradients :: [Tensor Ref Float] -> [Tensor Value Float] -> Build ControlNode
+    applyGradients weights grads = zipWithM applyGrad weights grads >>= TF.group
+      where
+        applyGrad :: Tensor Ref Float -> Tensor Value Float -> Build (Tensor Ref Float)
+        applyGrad param grad = TF.assign param $ param `TF.sub` (lr `TF.mul` grad)
+
+        lr :: Tensor Build Float
+        lr = TF.scalar 0.00001
 
 
 
