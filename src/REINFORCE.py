@@ -15,8 +15,8 @@ class Agent:
         reward_holder = tf.placeholder(shape=[None], dtype=tf.float32)
         action_holder = tf.placeholder(shape=[None], dtype=tf.int32)
 
-        indexes             = tf.range(0, tf.shape(outputs)[0]) * tf.shape(outputs)[1] + action_holder
-        responsible_outputs = tf.gather(tf.reshape(outputs, [-1]), indexes)
+        one_hot_outputs     =  tf.multiply(outputs, tf.one_hot(action_holder, action_size, axis=1))
+        responsible_outputs =  tf.reduce_sum(one_hot_outputs, axis=1)    # row-wise sum, so basically, remove one_hot
         loss                = -tf.reduce_mean(tf.log(responsible_outputs) * reward_holder)
 
         tvars = tf.trainable_variables()
@@ -24,16 +24,15 @@ class Agent:
         def new_grad(idx, grad):
             return tf.placeholder(tf.float32, name=str(idx)+"_holder", shape=grad.shape)
 
+
         gradient_holders = imap(new_grad, tvars)
         gradients        = tf.gradients(loss, tvars)
         update_batch     = tf.train.AdamOptimizer(learning_rate = lr).apply_gradients(zip(gradient_holders,tvars))
-
 
         self.reward_holder = reward_holder
         self.action_holder = action_holder
         self.inputs        = inputs
         self.outputs       = outputs
-        self.indexes       = indexes
         self.loss          = loss
         self.responsible_outputs = responsible_outputs
         self.gradient_holders    = gradient_holders
@@ -42,7 +41,6 @@ class Agent:
 
         self.gamma, self.max_steps = gamma, max_steps
         self.env, self.max_episodes, self.batch_size = env, max_episodes, batch_size
-
 
 
     def run_learner(self):
@@ -96,7 +94,6 @@ class Agent:
             running_reward += rwd
             s = s_next
 
-        #Update the network.
         grads = sess.run(self.gradients, feed_dict={
                 self.inputs: _c(np.vstack, np.array, _p(lmap, _0))(ep_history),
                 self.action_holder: lmap(_1, ep_history),

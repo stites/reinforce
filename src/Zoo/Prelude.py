@@ -13,63 +13,64 @@ import multiprocessing
 from functools import *
 from typing    import *
 
-#__all__ = [
-#    "gym",
-#    "np",
-#    "pd",
-#    "tf",
-#    "slim",
-#    "random",
-#    "os",
-#    "csv",
-#    "itertools",
-#
-#    "partial",
-#    "partialmethod",
-#    "reduce",
-#
-#    "_p",
-#    "mul",
-#    "div",
-#    "add",
-#    "sub",
-#    "compose",
-#    "_c",
-#    "eligibility_trace",
-#    "oneof",
-#    "lmap",
-#    "npmap",
-#    "imap",
-#    "lzip",
-#
-#    "head",
-#    "tail",
-#    "last",
-#    "init",
-#
-#    "_0",
-#    "_1",
-#    "_2",
-#    "_3",
-#    "_4",
-#    "choose_action",
-#    "one_hot_encode",
-#    "zipWith",
-#    "curry",
-#    "truncate",
-#
-#    "set_global_random_seed",
-#    "epsilon_greedy",
-#    "AnnealingEpsilon",
-#
-#    "space_sizes",
-#    "flatten_tensor",
-#    "Writer",
-#    "EpisodeWriter",
-#    "ReportWriter",
-#
-#    "sess_config"
-#    ]
+__all__ = [
+    "gym",
+    "np",
+    "pd",
+    "tf",
+    "slim",
+    "random",
+    "os",
+    "csv",
+    "itertools",
+
+    "partial",
+    "partialmethod",
+    "reduce",
+
+    "_p",
+    "mul",
+    "div",
+    "add",
+    "sub",
+    "compose",
+    "_c",
+    "eligibility_trace",
+    "oneof",
+    "lmap",
+    "npmap",
+    "imap",
+    "lzip",
+
+    "head",
+    "tail",
+    "last",
+    "init",
+
+    "_0",
+    "_1",
+    "_2",
+    "_3",
+    "_4",
+    "choose_action",
+    "one_hot_encode",
+    "zipWith",
+    "curry",
+    "truncate",
+
+    "set_global_random_seed",
+    "epsilon_greedy",
+    "AnnealingEpsilon",
+
+    "space_sizes",
+    "flatten_tensor",
+    "Writer",
+    "EpisodeWriter",
+    "ReportWriter",
+
+    "cpus",
+    "sess_config"
+    ]
 
 _p = partial
 
@@ -288,6 +289,4 @@ class ReportWriter(Writer):
 
 cpus = multiprocessing.cpu_count()
 sess_config = tf.ConfigProto(intra_op_parallelism_threads=cpus, inter_op_parallelism_threads=cpus)
-
-
 
