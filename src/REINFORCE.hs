@@ -50,8 +50,24 @@ data Model = Model
   { trainBatch :: TensorData Float -> TensorData Float -> Session ()
   , predict :: StateCP -> Session (Vector Float)
   , weights :: [Tensor Ref Float]
+  , getGrads :: TensorData Float -> TensorData Float -> Session [Tensor Ref Float]
   , size :: (Int, Int)
   }
+
+
+run :: (Model -> TensorData Float -> TensorData Float -> Session x) -> Model -> [Action] -> [Reward] -> Session x
+run fn m rs as = fn m (encode $ fmap cf rs) (encode $ fmap (ci.fromEnum) as)
+  where
+    encode :: [Float] -> TensorData Float
+    encode = TF.encodeTensorData [] . V.fromList
+
+
+getGrads' :: Model -> [Action] -> [Reward] -> Session [Tensor Ref Float]
+getGrads' = run getGrads
+
+trainBatch' :: Model -> [Action] -> [Reward] -> Session ()
+trainBatch' = run trainBatch
+
 
 createAgent :: Build Model
 createAgent = do
@@ -94,7 +110,14 @@ createAgent = do
     predict :: StateCP -> Session (Vector Float)
     predict st = TF.runWithFeeds [TF.feed inputs (encodeState' ssize st)] predicted
 
-  pure $ Model trainBatch predict weights (asize, ssize)
+    getGrads :: TensorData Float -> TensorData Float -> Session [Tensor Ref Float]
+    getGrads inFeed rwdFeed =
+      TF.runWithFeeds
+        [ TF.feed inputs    inFeed
+        , TF.feed predicted rwdFeed
+        ] grads
+
+  pure $ Model trainBatch predict weights getGrads (asize, ssize)
 
   where
     tfs :: Int -> Tensor Build Int32
@@ -143,11 +166,12 @@ learn = do
     resetBuffer = fmap (0 `TF.mul`)
 
     runLearner :: Model -> Int -> GradBuffer -> EnvSession GradBuffer
-    runLearner m@Model{trainBatch} epn buffer = do
-      Env.reset >>= \case
+    runLearner m epn buffer = do
+      a <- Env.reset
+      case a of
         EmptyEpisode -> pure buffer
         Initial s    -> do
-          (hist, grads) <- rolloutEpisode epn m 0 0.1 s DL.empty Nothing
+          (hist, grads) <- rolloutEpisode epn m 0.1 s DL.empty Nothing
 
           let
             gradbuffer = zipWith TF.add grads buffer
@@ -157,64 +181,41 @@ learn = do
 
           if epn `divisibleBy` batchSize && epn /= 0
           then do
-            liftTF (trainBatch (encode $ fmap cf rs) (encode $ fmap (ci.fromEnum) as))
+            liftTF (trainBatch' m as rs)
             pure (resetBuffer buffer)
 
           else pure gradbuffer
 
-    encode :: [Float] -> TensorData Float
-    encode = TF.encodeTensorData [] . V.fromList
 
+rolloutEpisode
+  :: Int
+  -> Model
+  -> Float
+  -> StateCP
+  -> DList (Reward, Action)
+  -> Maybe GradBuffer
+  -> EnvSession (DList (Reward, Action), GradBuffer)
+rolloutEpisode episodeNum model epsilon state dl mbuff =
+  go 0 epsilon state dl mbuff 0
 
-    -- updateAgent :: StateCP -> Action -> Double -> StateCP -> Vector Float -> Model -> EnvSession ()
-    -- updateAgent s a r s' qs (updateModel, chooseAction, _) = do
-    --   q_next <- (realToFrac . maximum . snd) <$> liftTF (chooseAction s')
-    --   let targetQ = realToFrac $ r + gamma * q_next
-    --   liftTF $ updateModel (encodeState s) (rewardTD targetQ a qs)
-    --   when (r /= 0) (printIO ("woot!", r, s, s'))
-
-    rolloutEpisode
-      :: Int
-      -> Model
-      -> Int
-      -> Float
-      -> StateCP
-      -> DList (Reward, Action)
-      -> Maybe GradBuffer
-      -> EnvSession (DList (Reward, Action), GradBuffer)
-    rolloutEpisode episodeNum model stepNum epsilon state dl mbuff
+  where
+    go :: Int -> Float -> StateCP -> DList (Reward, Action) -> Maybe GradBuffer -> Float -> EnvSession (DList (Reward, Action), GradBuffer)
+    go stepNum epsilon state dl mbuff runningReward
       | stepNum > maxSteps = case mbuff of
           Nothing   -> error "should never happen!"
           Just buff -> return (dl, buff)
 
       | otherwise = liftTF (predict model state)
         >>= toEnum . fst <$> MMWC.sampleFrom . V.toList . V.map realToFrac
-        >>= Env.step
+        >>= \a -> Env.step a
         >>= \case
           Next rwd nextState -> do
-            updateAgent state a rwd nextState qs model
-            rolloutEpisode episodeNum model (stepNum+1) epsilon nextState (dl `DL.snoc` (rwd, a))
---     def _rollout_ep(self, s, eps, sess):
---         running_reward = 0
---         step_num = 0
---         done = False
---         ep_history = []
---
---         while step_num < self.max_steps and not done:
---             action_dist        = sess.run(self.outputs, feed_dict={self.inputs:[s]})
---             action             = choose_action(action_dist, action_dist[0])
---             s_next, rwd, done, _ = self.env.step(action)
---             ep_history.append([s, action, rwd])
---
---             # Book-keeping
---             step_num += 1
---             running_reward += rwd
---             s = s_next
 
+            go (stepNum+1) epsilon nextState (dl `DL.snoc` (rwd, a)) mbuff (runningReward + cf rwd)
 
-          Done rwd (Just nextState) -> do
-            updateAgent state a rwd nextState qs model
-            pure $ (dl `DL.snoc` (rwd, a), buff)
+          Done rwd _ -> do
+
+            pure $ (dl `DL.snoc` (rwd, a), mbuff)
 --        grads = sess.run(self.gradients, feed_dict={
 --                self.inputs: _c(np.vstack, np.array, _p(lmap, _0))(ep_history),
 --                self.action_holder: lmap(_1, ep_history),
@@ -222,4 +223,3 @@ learn = do
 --            })
 --
 --        return running_reward, step_num, grads
-
