@@ -2,6 +2,8 @@
 module QNetwork where
 
 import Zoo.Prelude
+import Zoo.Internal
+
 import Control.MonadEnv.Internal
 import Environments.Gym.ToyText.FrozenLakeV0 hiding (Left, Right)
 
@@ -50,14 +52,6 @@ main = MWC.withSystemRandom $ \g ->
         episodes = (fmap.fmap) snd $
           groupBy (\l r -> fst l == fst r)
             (fmap eventToRewards . DL.toList $ rs)
-
-
-report :: MonadIO io => [Reward] -> io ()
-report rwds = do
-  let per = sum rwds / fromIntegral (genericLength rwds)
-  let last50Per = sum (lastN 50 rwds) / 50
-  printIO $ "Percent successful episodes: " ++ show per       ++ "%"
-  printIO $ "Percent successful last 50 : " ++ show last50Per ++ "%"
 
 
 learn :: EnvironmentT (MWCRandT Session) [DList (Reward, Action)]

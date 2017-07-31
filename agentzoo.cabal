@@ -45,6 +45,7 @@ library
       QNetworkBackprop
       REINFORCE
       Zoo.Gridworld
+      Zoo.Internal
       Zoo.Prelude
       Zoo.Tensorflow
   default-language: Haskell2010
