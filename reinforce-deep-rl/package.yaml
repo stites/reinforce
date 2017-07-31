@@ -1,0 +1,86 @@
+name: agentzoo
+version: 0.1.0.0
+
+default-extensions:
+  - BangPatterns
+  - ConstraintKinds
+  - DataKinds
+  - DeriveGeneric
+  - FlexibleContexts
+  - GADTs
+  - KindSignatures
+  - LambdaCase
+  - NamedFieldPuns
+  - NoImplicitPrelude
+  - OverloadedStrings
+  - PatternSynonyms
+  - TupleSections
+  - ViewPatterns
+
+dependencies:
+  - base
+  - bifunctors
+  - bytestring
+  - containers
+  - deepseq
+  - dlist
+  - microlens-platform
+  - monad-loops
+  - mtl
+  - mwc-random
+  - reinforce
+  - safe-exceptions
+  - statistics
+  - text
+  - unordered-containers
+  - vector
+  - transformers
+
+library:
+  source-dirs: src
+  dependencies:
+    # target 1
+    - proto-lens
+    - tensorflow-core-ops
+    - tensorflow-opgen
+    - tensorflow-ops
+    - tensorflow-proto
+    - tensorflow
+
+    # target 2
+    - backprop
+    - type-combinators
+    - generics-sop
+    # - accelerate
+    # - accelerate-llvm-native
+    - hmatrix
+
+executables:
+  report-server:
+    source-dirs: exe
+    main: ReportServer.hs
+    dependencies:
+      - base
+      - agentzoo
+      - reactive-banana
+      - servant
+      - servant-server
+      - aeson
+      - warp
+      - stm
+
+
+#tests:
+#  doctest:
+#    main: DocTest.hs
+#    source-dirs: test
+#    dependencies:
+#      - baselinehs
+#      - doctest
+#
+#  spec:
+#    main: Spec.hs
+#    source-dirs: test
+#    dependencies:
+#      - baselinehs
+#      - hspec

@@ -1,0 +1,27 @@
+flags: {}
+extra-package-dbs: []
+packages:
+- '.'
+- location:
+    git: git@github.com:Sentenai/reinforce.git
+    commit: 'ed854e9'
+  extra-dep: true
+- location:
+    git: git@github.com:stites/gym-http-api.git
+    commit: '93ce33'
+  subdirs:
+    - binding-hs
+  extra-dep: true
+- location:
+    git: git@github.com:mstksg/backprop.git
+    commit: '6bd8e2'
+  extra-dep: true
+
+extra-deps:
+- tensorflow-0.1.0.2
+- tensorflow-core-ops-0.1.0.0
+- tensorflow-opgen-0.1.0.0
+- tensorflow-ops-0.1.0.0
+- tensorflow-proto-0.1.0.0
+- reactive-banana-1.1.0.1
+resolver: lts-8.22
