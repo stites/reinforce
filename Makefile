@@ -1,37 +1,47 @@
-sos_warn:
-	@echo "-----------------------------------------------------------------"
-	@echo "		  ! File watching functionality non-operational !			"
-	@echo "																	"
-	@echo " Install steeloverseer to automatically run tasks on file change "
-	@echo "																	"
-	@echo " See https://github.com/schell/steeloverseer						"
-	@echo "-----------------------------------------------------------------"
-
+STACK=stack
 GHCID_SIZE ?= 8
 # no name shadowing because not all abstractions are finished
 GHCI_FLAGS ?= --ghci-options=-Wno-name-shadowing --ghci-options=-Wno-type-defaults
 
-GHCI=stack ghci $(GHCI_FLAGS)
-stack-ghci=$(GHCI)
-stack-ghci-test=$(GHCI) --test
+sos_warn:
+	@command -v sos >/dev/null 2>&1 || { \
+	   echo "-----------------------------------------------------------------" ; \
+	   echo "        ! File watching functionality non-operational !          " ; \
+	   echo "                                                                 " ; \
+	   echo " Install steeloverseer to automatically run tasks on file change " ; \
+	   echo "                                                                 " ; \
+	   echo " See https://github.com/schell/steeloverseer                     " ; \
+	   echo "-----------------------------------------------------------------" ; \
+	}
 
 ghci:
-	$(stack-ghci)
+	$(STACK) ghci $(GHCI_FLAGS)
 
 ghci-test:
-	$(stack-ghci-test)
+	$(STACK) ghci $(GHCI_FLAGS) --test
 
 ghcid:
-	ghcid --height=$(GHCID_SIZE) --topmost "--command=$(stack-ghci)"
+	ghcid --height=$(GHCID_SIZE) --topmost "--command=$(MAKE) ghci"
 
 ghcid-test:
-	ghcid --height=$(GHCID_SIZE) --topmost "--command=$(stack-ghci-test)"
+	ghcid --height=$(GHCID_SIZE) --topmost "--command=$(MAKE) ghci-test"
 
-hlint:
-	if command -v sos > /dev/null; then sos -p 'app/.*\.hs' -p 'src/.*\.hs' \
-	-c 'hlint \0'; else $(MAKE) sos_warn; fi
+hlint: sos_warn
+	@command -v sos >/dev/null 2>&1 || { hlint .; exit 0; }
+	@command -v hlint >/dev/null 2>&1 && { sos -p 'app/.*\.hs' -p 'src/.*\.hs' -c 'hlint \0'; } || echo "hlint not found on PATH"
 
-codex:
-	if command -v sos > /dev/null; then sos -p '.*\.hs' \
-	-c 'codex update --force'; else $(MAKE) entr_warn; fi
+codex: sos_warn
+	@command -v sos   >/dev/null 2>&1 || { codex update --force; exit 0; }
+	@command -v codex >/dev/null 2>&1 && { sos -p '.*\.hs' -c 'codex update --force'; } || echo "codex not found on PATH"
 
+weeder: sos_warn
+	@command -v sos >/dev/null 2>&1 || { weeder .; exit 0; }
+	@command -v weeder >/dev/null 2>&1 && { sos -p '.*\.hs' -c 'weeder .'; } || echo "weeder not found on PATH"
+
+ff:
+	$(STACK) build --file-watch
+
+ff-test:
+	$(STACK) test --file-watch
+
+.PHONY: codex hlint ghcid-test ghci-test ghcid ghci sos_warn ff ff-test weeder
