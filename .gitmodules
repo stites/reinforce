@@ -1,0 +1,3 @@
+[submodule "hasktorch"]
+	path = hasktorch
+	url = git@github.com:hasktorch/hasktorch.git
