@@ -1,9 +1,3 @@
--- This file has been generated from package.yaml by hpack version 0.28.2.
---
--- see: https://github.com/sol/hpack
---
--- hash: 7b985ab757cc0ca509c20fcb9db65838121fa79f88897a8eaa0bc8794cf3d951
-
 name:           reinforce-environments
 version:        0.0.1.0
 synopsis:       Reinforcement learning in Haskell
@@ -31,17 +25,17 @@ library
       Data.Gym
       Environments.Bandits
       Environments.CartPole
-  other-modules:
-      Paths_reinforce_environments
-  reexported-modules:
-      Control.MonadEnv, Reinforce.Spaces.Action, Data.Logger, Data.Event, Reinforce.Spaces, Reinforce.Spaces.State
-  hs-source-dirs:
-      src
+      Environments.Blackjack
+  other-modules: Paths_reinforce_environments
+  reexported-modules: Control.MonadEnv, Reinforce.Spaces.Action, Data.Logger, Data.Event, Reinforce.Spaces, Reinforce.Spaces.State
+  hs-source-dirs: src
   default-extensions: MultiParamTypeClasses OverloadedStrings LambdaCase TypeFamilies
+  default-language: Haskell2010
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       aeson >=1.0
     , base >=4.9 && <5.0
+    , containers
     , dlist
     , hashable
     , mtl
@@ -50,5 +44,5 @@ library
     , safe-exceptions
     , statistics
     , transformers
+    , unordered-containers
     , vector
-  default-language: Haskell2010
