@@ -95,14 +95,6 @@ packages:
     git: git@github.com:Sentenai/reinforce.git
     commit: 'v0.0.1'
   extra-dep:true
-
-# This is a requirement due to some tight coupling of the gym-http-api
-- location:
-    git: https://github.com/stites/gym-http-api.git
-    commit: '5b72789'
-  subdirs:
-    - binding-hs
-  extra-dep: true
 - ...
 ```
 

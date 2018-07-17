@@ -8,6 +8,11 @@ packages:
 - reinforce-environments-gym
 - reinforce-zoo
 
+# - reinforce-gridworld
+# 
+# extra-deps:
+# - reactive-banana-1.2.0.0
+
 extra-lib-dirs:
 - /usr/local/lib/
 - /compat/linux/lib/

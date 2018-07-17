@@ -1,0 +1,11 @@
+packages:
+    hasktorch/**/*.cabal
+    hasktorch/**/**/*.cabal
+
+    reinforce/*.cabal
+    reinforce-algorithms/*.cabal
+    reinforce-environments/*.cabal
+    reinforce-environments-gym/*.cabal
+    reinforce-zoo/*.cabal
+
+
