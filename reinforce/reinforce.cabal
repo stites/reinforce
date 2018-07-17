@@ -1,9 +1,3 @@
--- This file has been generated from package.yaml by hpack version 0.28.2.
---
--- see: https://github.com/sol/hpack
---
--- hash: fa653680dc7158b541f6d96affba2b751a14092ad4a3ce8931d08b45129c884e
-
 name:           reinforce
 version:        0.0.1.0
 synopsis:       Reinforcement learning in Haskell
@@ -27,6 +21,10 @@ source-repository head
   subdir: reinforce
 
 library
+  hs-source-dirs: src
+  default-extensions: MultiParamTypeClasses OverloadedStrings LambdaCase TypeFamilies
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
+  default-language: Haskell2010
   exposed-modules:
       Control.MonadEnv
       Control.MonadMWCRandom
@@ -36,12 +34,9 @@ library
       Reinforce.Spaces
       Reinforce.Spaces.Action
       Reinforce.Spaces.State
+      Reinforce.Spaces.Internal
   other-modules:
       Paths_reinforce
-  hs-source-dirs:
-      src
-  default-extensions: MultiParamTypeClasses OverloadedStrings LambdaCase TypeFamilies
-  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       base >=4.9 && <5.0
     , mtl
@@ -52,4 +47,3 @@ library
     , text
     , transformers
     , vector
-  default-language: Haskell2010
