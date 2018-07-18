@@ -22,7 +22,7 @@ source-repository head
 
 executable egreedy-bandits
   main-is: EGreedy.hs
-  hs-source-dirs: examples/bandits
+  hs-source-dirs: bandits
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   default-language: Haskell2010
   build-depends:
@@ -35,7 +35,7 @@ executable egreedy-bandits
 
 executable egreedy-blackjack
   main-is: Main.hs
-  hs-source-dirs: examples/blackjack
+  hs-source-dirs: blackjack
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   default-language: Haskell2010
   build-depends:
@@ -49,7 +49,7 @@ executable egreedy-blackjack
 
 executable qtable-cartpole
   main-is: QTable.hs
-  hs-source-dirs: examples/frozenlake
+  hs-source-dirs: frozenlake
   default-language: Haskell2010
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
@@ -60,7 +60,7 @@ executable qtable-cartpole
 
 executable qtable-frozenlake
   main-is: QTable.hs
-  hs-source-dirs: examples/frozenlake
+  hs-source-dirs: frozenlake
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   default-language: Haskell2010
   build-depends:
@@ -73,7 +73,7 @@ executable qtable-frozenlake
 
 executable random-agent
   main-is: RandomAgent.hs
-  hs-source-dirs: examples/bandits
+  hs-source-dirs: bandits
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   default-language: Haskell2010
   build-depends:

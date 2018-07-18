@@ -1,9 +1,3 @@
--- This file has been generated from package.yaml by hpack version 0.28.2.
---
--- see: https://github.com/sol/hpack
---
--- hash: f9195b74cbd80f06e5164b3099dd794a7f88c875959fa62146aabc39a9f10248
-
 name:           reinforce-environments-gym
 version:        0.0.1.0
 synopsis:       Reinforcement learning in Haskell
@@ -26,6 +20,7 @@ source-repository head
   location: https://github.com/Sentenai/reinforce
 
 library
+  other-modules: Paths_reinforce_environments_gym
   exposed-modules:
       Environments.Gym.ClassicControl.AcrobotV1
       Environments.Gym.ClassicControl.CartPoleV0
@@ -35,19 +30,16 @@ library
       Environments.Gym.ClassicControl.PendulumV0
       Environments.Gym.Internal
       Environments.Gym.ToyText.FrozenLakeV0
-  other-modules:
-      Paths_reinforce_environments_gym
-  reexported-modules:
-      Control.MonadEnv, Reinforce.Spaces.Action, Data.Logger, Data.Event, Reinforce.Spaces, Reinforce.Spaces.State
-  hs-source-dirs:
-      src
+      Environments.Gym.ToyText.BlackjackV0
+  hs-source-dirs: src
   default-extensions: MultiParamTypeClasses OverloadedStrings LambdaCase TypeFamilies
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
+  default-language: Haskell2010
   build-depends:
       aeson >=1.0
     , base >=4.9 && <5.0
     , dlist
-    , gym-http-api >=0.1.0.1
+    , gym-http-api >=0.1.0.2
     , hashable
     , http-client >=0.4
     , mtl
@@ -58,4 +50,5 @@ library
     , text
     , transformers
     , vector
-  default-language: Haskell2010
+  reexported-modules:
+      Control.MonadEnv, Reinforce.Spaces.Action, Data.Logger, Data.Event, Reinforce.Spaces, Reinforce.Spaces.State
