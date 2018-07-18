@@ -20,7 +20,7 @@ source-repository head
   location: https://github.com/sentenai-research/reinforce
   subdir: reinforce-zoo
 
-executable egreedy-bandits-example
+executable egreedy-bandits
   main-is: EGreedy.hs
   hs-source-dirs: examples/bandits
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
@@ -33,7 +33,21 @@ executable egreedy-bandits-example
     , reinforce-environments ==0.0.1.0
     , vector >=0.11
 
-executable qtable-cartpole-example
+executable egreedy-blackjack
+  main-is: Main.hs
+  hs-source-dirs: examples/blackjack
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
+  default-language: Haskell2010
+  build-depends:
+      base >=4.9 && <5.0
+    , mwc-random >=0.13
+    , reinforce ==0.0.1.0
+    , reinforce-algorithms ==0.0.1.0
+    , reinforce-environments-gym ==0.0.1.0
+    , vector >=0.11
+    , hasktorch-core
+
+executable qtable-cartpole
   main-is: QTable.hs
   hs-source-dirs: examples/frozenlake
   default-language: Haskell2010
@@ -44,7 +58,7 @@ executable qtable-cartpole-example
     , reinforce-algorithms ==0.0.1.0
     , reinforce-environments-gym ==0.0.1.0
 
-executable qtable-frozenlake-example
+executable qtable-frozenlake
   main-is: QTable.hs
   hs-source-dirs: examples/frozenlake
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
@@ -57,7 +71,7 @@ executable qtable-frozenlake-example
     , reinforce-environments-gym
     , vector
 
-executable random-agent-example
+executable random-agent
   main-is: RandomAgent.hs
   hs-source-dirs: examples/bandits
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
