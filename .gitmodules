@@ -1,3 +1,6 @@
 [submodule "hasktorch"]
 	path = hasktorch
 	url = git@github.com:hasktorch/hasktorch.git
+[submodule "gym-http-api"]
+	path = gym-http-api
+	url = git@github.com:stites/gym-http-api.git

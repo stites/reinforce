@@ -2,6 +2,8 @@ packages:
     hasktorch/**/*.cabal
     hasktorch/**/**/*.cabal
 
+    gym-http-api/binding-hs/*.cabal
+
     reinforce/*.cabal
     reinforce-algorithms/*.cabal
     reinforce-environments/*.cabal
