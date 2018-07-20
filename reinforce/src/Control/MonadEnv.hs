@@ -44,6 +44,7 @@ type Reward = Double
 -- | When starting an episode, we want to send an indication that the environment
 -- is starting without conflating this type with future steps (in @Obs r o@)
 data Initial o = Initial !o | EmptyEpisode
+  deriving (Show, Eq)
 
 -- | An observation of the environment will either show that the environment is
 -- done with the episode (yielding 'Done'), that the environment has already

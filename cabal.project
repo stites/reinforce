@@ -1,6 +1,6 @@
 packages:
-    hasktorch/**/*.cabal
-    hasktorch/**/**/*.cabal
+    -- hasktorch/**/*.cabal
+    -- hasktorch/**/**/*.cabal
 
     gym-http-api/binding-hs/*.cabal
 

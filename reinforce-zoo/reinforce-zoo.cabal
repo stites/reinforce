@@ -33,7 +33,7 @@ executable egreedy-bandits
     , reinforce-environments ==0.0.1.0
     , vector >=0.11
 
-executable egreedy-blackjack
+executable monte-carlo-blackjack
   main-is: Main.hs
   hs-source-dirs: blackjack
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
@@ -43,9 +43,10 @@ executable egreedy-blackjack
     , mwc-random >=0.13
     , reinforce ==0.0.1.0
     , reinforce-algorithms ==0.0.1.0
+    , reinforce-environments ==0.0.1.0
     , reinforce-environments-gym ==0.0.1.0
     , vector >=0.11
-    , hasktorch-core
+    -- , hasktorch-core
 
 executable qtable-cartpole
   main-is: QTable.hs
