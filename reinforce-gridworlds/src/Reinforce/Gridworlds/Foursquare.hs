@@ -25,13 +25,13 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Reinforce.Gridworlds.Foursquare where
 
-import Data.Word
-import Data.Proxy
-import GHC.TypeLits
-import Control.MonadEnv
-import Control.Monad.State
-import Control.Monad.IO.Class
-import System.Random.MWC
+import Data.Word (Word)
+import Data.Proxy (Proxy(Proxy))
+import GHC.TypeLits (KnownNat, Nat, natVal)
+import Control.MonadEnv (MonadEnv(reset, step), Obs(Next, Done), Initial(Initial))
+import Control.Monad.State (StateT, get, put, runStateT)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import System.Random.MWC (GenIO, uniformR)
 
 -- | World monad
 newtype World x = World { getWorld :: StateT (GenIO, Double, (Word, Word)) IO x }
@@ -55,6 +55,7 @@ instance KnownNat n => Bounded (Discrete n) where
 
 instance KnownNat n => Enum (Discrete n) where
   fromEnum (Discrete x) = fromIntegral x
+  toEnum i = unsafeDiscrete (fromIntegral i)
 
 size :: forall n .  KnownNat n => Discrete n -> Int
 size _ = fromIntegral mx - fromIntegral mn + 1
@@ -105,16 +106,18 @@ instance MonadEnv World (Word, Word) (Discrete 4) Double where
 
     case (toEnum $ fromEnum w', pos) of
       (ADown,  (1, 1)) -> pure $ Done 10 (Just (1, 0)) -- you just won!
+      (ARight, (0, 0)) -> pure $ Next (-1) (0, 0)      -- trying to walk into wall
 
       (AUp,    (x, 1)) -> pure $ Next (-1) (x, 1)   -- already at top
       (AUp,    (x, y)) -> pure $ Next (-1) (x, y+1)
+
       (ADown,  (x, 0)) -> pure $ Next (-1) (x, 0)   -- already at bottom
       (ADown,  (x, y)) -> pure $ Next (-1) (x, y-1)
+
       (ARight, (1, y)) -> pure $ Next (-1) (1,   y) -- already at right
       (ARight, (x, y)) -> pure $ Next (-1) (x+1, y)
+
       (ALeft,  (0, y)) -> pure $ Next (-1) (0,   y) -- already at right
       (ALeft,  (x, y)) -> pure $ Next (-1) (x-1, y)
-
-
 
 

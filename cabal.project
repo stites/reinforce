@@ -8,6 +8,7 @@ packages:
     reinforce-algorithms/*.cabal
     reinforce-environments/*.cabal
     reinforce-environments-gym/*.cabal
+    reinforce-gridworlds/*.cabal
     reinforce-zoo/*.cabal
 
 
