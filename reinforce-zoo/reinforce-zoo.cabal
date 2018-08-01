@@ -80,3 +80,19 @@ executable random-agent
   build-depends:
       base
     , reinforce-environments
+
+executable foursquare-mc-constant-alpha
+  main-is: Main.hs
+  hs-source-dirs: foursquare-mc-constant-alpha
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
+  default-language: Haskell2010
+  build-depends:
+      base
+    , mwc-random
+    , reinforce
+    , reinforce-algorithms
+    , reinforce-gridworlds
+    , vector
+    , unordered-containers
+
+
