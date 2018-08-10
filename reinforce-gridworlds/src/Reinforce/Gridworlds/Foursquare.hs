@@ -44,7 +44,6 @@ data ArrowKeys
   | ARight
   deriving (Eq, Ord, Show, Enum, Bounded)
 
-
 -- | Discrete action space
 newtype Discrete (n::Nat) = Discrete Word
   deriving (Eq, Ord, Show)
@@ -104,20 +103,22 @@ instance MonadEnv World (Word, Word) (Discrete 4) Double where
            then unsafeDiscrete . toEnum <$> uniformR (0,4) g
            else pure w
 
-    case (toEnum $ fromEnum w', pos) of
-      (ADown,  (1, 1)) -> pure $ Done 10 (Just (1, 0)) -- you just won!
-      (ARight, (0, 0)) -> pure $ Next (-1) (0, 0)      -- trying to walk into wall
+    pure $
+      case (toEnum $ fromEnum w', pos) of
+        (ADown,  (1, 1)) -> Done 10 (Just (1, 0)) -- you just won!
+        (ARight, (0, 0)) -> Next (-1) (0, 0)      -- trying to walk into wall
 
-      (AUp,    (x, 1)) -> pure $ Next (-1) (x, 1)   -- already at top
-      (AUp,    (x, y)) -> pure $ Next (-1) (x, y+1)
+        (AUp,    (x, 1)) -> Next (-1) (x, 1)   -- already at top
+        (AUp,    (x, y)) -> Next (-1) (x, y+1)
 
-      (ADown,  (x, 0)) -> pure $ Next (-1) (x, 0)   -- already at bottom
-      (ADown,  (x, y)) -> pure $ Next (-1) (x, y-1)
+        (ADown,  (x, 0)) -> Next (-1) (x, 0)   -- already at bottom
+        (ADown,  (x, y)) -> Next (-1) (x, y-1)
 
-      (ARight, (1, y)) -> pure $ Next (-1) (1,   y) -- already at right
-      (ARight, (x, y)) -> pure $ Next (-1) (x+1, y)
+        (ARight, (1, y)) -> Next (-1) (1,   y) -- already at right
+        (ARight, (x, y)) -> Next (-1) (x+1, y)
 
-      (ALeft,  (0, y)) -> pure $ Next (-1) (0,   y) -- already at right
-      (ALeft,  (x, y)) -> pure $ Next (-1) (x-1, y)
+        (ALeft,  (0, y)) -> Next (-1) (0,   y) -- already at right
+        (ALeft,  (x, y)) -> Next (-1) (x-1, y)
+
 
 

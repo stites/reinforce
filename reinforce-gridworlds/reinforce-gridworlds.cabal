@@ -47,7 +47,9 @@ executable demo
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wmissing-import-lists
   build-depends:
       base
+    , vty
     , reactive-banana
     , reinforce-gridworlds
   other-modules:
       Paths_reinforce_gridworlds
+
