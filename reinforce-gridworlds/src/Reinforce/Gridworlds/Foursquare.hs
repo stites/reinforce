@@ -29,7 +29,7 @@ import Data.Word (Word)
 import Data.Proxy (Proxy(Proxy))
 import GHC.TypeLits (KnownNat, Nat, natVal)
 import Control.MonadEnv (MonadEnv(reset, step), Obs(Next, Done), Initial(Initial))
-import Control.Monad.State (StateT, get, put, runStateT)
+import Control.Monad.Trans.State (StateT, get, put, runStateT)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import System.Random.MWC (GenIO, uniformR)
 

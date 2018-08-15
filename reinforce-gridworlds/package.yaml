@@ -4,7 +4,7 @@ synopsis:    Building gridworlds for reinforcement learning
 category:    Reinforcement learning, Simulations
 author:      Sam Stites, Sentenai Inc.
 maintainer:  sam@sentenai.com
-github:      Sentenai/reinforce/reinforce-gridworld
+github:      Sentenai/reinforce/reinforce-gridworlds
 license:     BSD3
 copyright:   2017 Sentenai, Inc.
 ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wmissing-import-lists
@@ -40,9 +40,9 @@ library:
   source-dirs: src
   dependencies:
     - base               >= 4.9 && < 5.0
-    # transformers
-    # mtl
-    # mwc-random
+    - transformers
+    - mtl
+    - mwc-random
     # statistics
     # safe-exceptions
     - hashable
@@ -53,11 +53,13 @@ library:
     # vector
 
 executables:
-  demo:
+  dashboard:
     source-dirs: app
     main: Main.hs
     dependencies:
       - base
+      - termbox
+      - termbox-banana
       - reinforce-gridworlds
       - reactive-banana
 

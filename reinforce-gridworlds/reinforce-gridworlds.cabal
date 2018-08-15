@@ -1,3 +1,11 @@
+cabal-version: >= 1.10
+
+-- This file has been generated from package.yaml by hpack version 0.29.6.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 318df4466b9d806e57c973ce2cf02a1d386709365696f20cf1b6f65df5b7f12f
+
 name:           reinforce-gridworlds
 version:        0.0.1.0
 synopsis:       Building gridworlds for reinforcement learning
@@ -12,7 +20,6 @@ maintainer:     sam@sentenai.com
 copyright:      2017 Sentenai, Inc.
 license:        BSD3
 build-type:     Simple
-cabal-version:  >= 1.10
 
 source-repository head
   type: git
@@ -25,31 +32,33 @@ library
       Reinforce.Gridworlds.Foursquare
   other-modules:
       Paths_reinforce_gridworlds
-  hs-source-dirs: src
+  hs-source-dirs:
+      src
   default-extensions: MultiParamTypeClasses OverloadedStrings LambdaCase TypeFamilies
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wmissing-import-lists
   build-depends:
       base >=4.9 && <5.0
     , hashable
-    , reactive-banana
-    , reinforce
-    , unordered-containers
-    , transformers
     , mtl
     , mwc-random
+    , reactive-banana
+    , reinforce
+    , transformers
+    , unordered-containers
   default-language: Haskell2010
 
-executable demo
+executable dashboard
   main-is: Main.hs
-  hs-source-dirs: app
-  default-language: Haskell2010
+  other-modules:
+      Paths_reinforce_gridworlds
+  hs-source-dirs:
+      app
   default-extensions: MultiParamTypeClasses OverloadedStrings LambdaCase TypeFamilies
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wmissing-import-lists
   build-depends:
       base
-    , vty
     , reactive-banana
     , reinforce-gridworlds
-  other-modules:
-      Paths_reinforce_gridworlds
-
+    , termbox
+    , termbox-banana
+  default-language: Haskell2010
