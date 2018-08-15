@@ -7,11 +7,13 @@ packages:
 - reinforce-environments
 - reinforce-environments-gym
 - reinforce-zoo
+- reinforce-gridworlds
+- location: ./gym-http-api/binding-hs
 
-# - reinforce-gridworld
-# 
-# extra-deps:
-# - reactive-banana-1.2.0.0
+extra-deps:
+- reactive-banana-1.2.0.0
+- termbox-0.1.0
+- termbox-banana-0.1.0
 
 extra-lib-dirs:
 - /usr/local/lib/
@@ -19,3 +21,7 @@ extra-lib-dirs:
 
 extra-include-dirs:
 - /usr/local/include/
+
+nix:
+  enable: true
+  shell-file: shell.nix

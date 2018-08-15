@@ -23,9 +23,9 @@ let
               gym-http-api               = haskellPackagesNew.callPackage ./gym-http-api/binding-hs { };
 
               reinforce                  = haskellPackagesNew.callPackage ./reinforce { };
-              # reinforce-algorithms       = haskellPackagesNew.callPackage ./reinforce-algorithms { };
-              # reinforce-environments     = haskellPackagesNew.callPackage ./reinforce-environments { };
-              # reinforce-environments-gym = haskellPackagesNew.callPackage ./reinforce-environments-gym { };
+              reinforce-algorithms       = haskellPackagesNew.callPackage ./reinforce-algorithms { };
+              reinforce-environments     = haskellPackagesNew.callPackage ./reinforce-environments { };
+              reinforce-environments-gym = haskellPackagesNew.callPackage ./reinforce-environments-gym { };
             };
           };
         };
@@ -37,9 +37,9 @@ let
 in
   {
     reinforce                  = pkgs.haskell.packages.${compilerVersion}.reinforce;
-    # reinforce-algorithms       = pkgs.haskell.packages.${compilerVersion}.reinforce-algorithms;
-    # reinforce-environments     = pkgs.haskell.packages.${compilerVersion}.reinforce-environments;
-    # reinforce-environments-gym = pkgs.haskell.packages.${compilerVersion}.reinforce-environments-gym;
+    reinforce-algorithms       = pkgs.haskell.packages.${compilerVersion}.reinforce-algorithms;
+    reinforce-environments     = pkgs.haskell.packages.${compilerVersion}.reinforce-environments;
+    reinforce-environments-gym = pkgs.haskell.packages.${compilerVersion}.reinforce-environments-gym;
 
     # reinforce-zoo:
     # ==============
