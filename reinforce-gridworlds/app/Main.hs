@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecursiveDo #-}
 module Main where
 
 import Data.Char     (toUpper)
@@ -84,6 +85,7 @@ makeNetworkDescription addKeyEvent = do
 
 -}
 
+
 maybeCharEvt :: TB.Event -> Maybe Char
 maybeCharEvt = \case
     EventKey (KeyChar c) _ -> Just c
@@ -94,14 +96,12 @@ terminate = \case
     EventKey KeyEsc _ -> Just ()
     _ -> Nothing
 
-increment :: Int -> Int -> Int
-increment d = max 0 . min 10 . (d+)
 
 main :: IO ()
 main = TB.main (InputModeEsc MouseModeNo) OutputModeNormal $ \keyEvent behav -> do
 
-  let ekepress :: Event Char
-      ekepress = filterMapJust maybeCharEvt keyEvent
+  let ekeypress :: Event Char
+      ekeypress = filterMapJust maybeCharEvt keyEvent
 
       renderChar :: Char -> Scene
       renderChar c = Scene (set 10 10 (Cell c white black)) NoCursor
@@ -112,8 +112,16 @@ main = TB.main (InputModeEsc MouseModeNo) OutputModeNormal $ \keyEvent behav -> 
       eTerminate :: Event ()
       eTerminate = filterMapJust terminate keyEvent
 
-  bIx <- stepper emptyScene (renderChar <$> ekepress)
+      renderStr :: [Char] -> Cells
+      renderStr cs = foldMap (\(i,c) -> set (i+10) 10 (Cell c white black)) $ zip [0..] cs
 
-  pure (bIx, eTerminate)
+  rec bTyped <- stepper [] (pure (\memo c -> memo ++ [c]) <*> bTyped <@> ekeypress)
+
+  let bRendered :: Behavior Scene
+      bRendered = (`Scene` NoCursor) .  renderStr <$> bTyped
+
+  pure (bRendered, eTerminate)
+
+
 
 
