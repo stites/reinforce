@@ -6,6 +6,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class
 import Control.MonadEnv
 import Reinforce.Gridworlds.Foursquare
+import Reinforce.Spaces.Action
 import System.Random.MWC
 import Data.HashMap.Strict (HashMap)
 import Data.List (maximumBy)
@@ -18,7 +19,7 @@ main = do
   withSystemRandom $ \g ->
     void . runWorld g 0.3 $ agent
 
-type ActionRewards = HashMap (Discrete 4) Double
+type ActionRewards = HashMap (Discrete1d 4) Double
 type QTable = HashMap (Word, Word) ActionRewards
 
 agent = undefined
@@ -34,7 +35,7 @@ rolloutEpisode g qtable0
     a <- liftIO $ choose
     undefined
     where
-      choose :: IO (Discrete 4)
+      choose :: IO (Discrete1d 4)
       choose = case HM.lookup s qtable of
         Nothing  -> toEnum <$> uniformR (0, 4) g
         Just ars -> pure $ fst $ maximumBy (compare `on` fst) (HM.toList ars)

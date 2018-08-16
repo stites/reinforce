@@ -27,8 +27,7 @@ import Data.Aeson.Types
 import Data.Hashable
 import GHC.Generics
 import Control.Exception (AssertionFailed(..), throw)
-import Reinforce.Spaces
-import Reinforce.Spaces.Action (Size)
+import Reinforce.Spaces.State
 -- import Numeric.LinearAlgebra.Static
 import qualified Data.Logger as Logger
 import qualified Data.Vector as V
@@ -49,8 +48,8 @@ data Action
 
 instance Hashable Action
 
-instance DiscreteActionSpace Action where
-  type Size Action = 2
+-- instance DiscreteActionSpace Action where
+--   type Size Action = 2
 
 instance ToJSON Action where
   toJSON :: Action -> Value

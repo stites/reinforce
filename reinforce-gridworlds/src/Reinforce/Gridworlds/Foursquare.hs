@@ -18,7 +18,6 @@
 --    `-------'''------'
 --
 -------------------------------------------------------------------------------
-
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
@@ -33,49 +32,11 @@ import Control.Monad.Trans.State (StateT, get, put, runStateT)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import System.Random.MWC (GenIO, uniformR)
 
+import Reinforce.Spaces.Action
+
 -- | World monad
 newtype World x = World { getWorld :: StateT (GenIO, Double, (Word, Word)) IO x }
   deriving (Functor, Applicative, Monad, MonadIO)
-
-data ArrowKeys
-  = AUp
-  | ADown
-  | ALeft
-  | ARight
-  deriving (Eq, Ord, Show, Enum, Bounded)
-
--- | Discrete action space
-newtype Discrete (n::Nat) = Discrete Word
-  deriving (Eq, Ord, Show)
-
-instance KnownNat n => Bounded (Discrete n) where
-  minBound = Discrete 0
-  maxBound = Discrete . fromIntegral $ natVal (Proxy :: Proxy n) - 1
-
-instance KnownNat n => Enum (Discrete n) where
-  fromEnum (Discrete x) = fromIntegral x
-  toEnum i = unsafeDiscrete (fromIntegral i)
-
-size :: forall n .  KnownNat n => Discrete n -> Int
-size _ = fromIntegral mx - fromIntegral mn + 1
-  where
-    Discrete mn = minBound :: Discrete n
-    Discrete mx = maxBound :: Discrete n
-
--- | make a discrete action
-mDiscrete :: forall n . KnownNat n => Word -> Maybe (Discrete n)
-mDiscrete a
-  | fromIntegral a < natVal (Proxy :: Proxy n) = Just (Discrete a)
-  | otherwise = Nothing
-
--- | brazenly make a discrete action without
-unsafeDiscrete :: forall n . KnownNat n => Word -> Discrete n
-unsafeDiscrete w =
-  case mDiscrete w of
-    Just a  -> a
-    Nothing -> error $
-      "called unsafeDiscrete with a number >= "
-        ++ show (size (maxBound :: Discrete n))
 
 -- | run a world with a given probability with how "slippery" each action is.
 runWorld :: GenIO -> Double -> World x -> IO (x, (GenIO, Double, (Word, Word)))
@@ -87,7 +48,7 @@ runWorld g p (World ms)
 evalWorld :: GenIO -> Double -> World x -> IO x
 evalWorld g p w = fst <$> runWorld g p w
 
-instance MonadEnv World (Word, Word) (Discrete 4) Double where
+instance MonadEnv World (Word, Word) (Discrete1d 4) Double where
   reset = World $ do
     let pos = (0,0)
     (g, p, _) <- get
@@ -100,7 +61,7 @@ instance MonadEnv World (Word, Word) (Discrete 4) Double where
     w' <- liftIO $ do
            p' <- uniformR (0,1) g
            if p' <= pslip
-           then unsafeDiscrete . toEnum <$> uniformR (0,4) g
+           then unsafeDiscrete1d . toEnum <$> uniformR (0,4) g
            else pure w
 
     pure $

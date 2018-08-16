@@ -9,9 +9,9 @@
 --
 -- re-exports of Action- and State- types.
 -------------------------------------------------------------------------------
-module Reinforce.Spaces ( module X ) where
+module Reinforce.Spaces where
 
-import Reinforce.Spaces.Action as X (DiscreteActionSpace)
-import Reinforce.Spaces.State  as X (StateSpaceStatic)
+-- import Reinforce.Spaces.Action as X (DiscreteActionSpace)
+-- import Reinforce.Spaces.State  as X (StateSpaceStatic)
 
 
